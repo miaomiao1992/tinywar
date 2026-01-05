@@ -5,7 +5,7 @@ use crate::core::map::utils::TileTextureLens;
 use crate::core::menu::utils::add_text;
 use crate::core::settings::Settings;
 use crate::core::states::GameState;
-use crate::core::units::buildings::Building;
+use crate::core::units::buildings::Buildings;
 use crate::utils::NameFromEnum;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
@@ -25,6 +25,7 @@ pub struct BgAnimCmp;
 pub fn draw_map(
     mut commands: Commands,
     settings: Res<Settings>,
+    buildings: Res<Buildings>,
     window: Single<&Window>,
     assets: Local<WorldAssets>,
 ) {
@@ -91,15 +92,21 @@ pub fn draw_map(
     }
 
     // Draw buildings
-    commands.spawn((
-        Sprite::from_image(assets.image(format!(
-            "{}-{}",
-            settings.color.to_name(),
-            Building::Castle.to_name()
-        ))),
-        Transform::from_xyz(0., 0., BUILDINGS_Z).with_scale(Vec3::splat(0.6)),
-        MapCmp,
-    ));
+    for building in buildings.iter() {
+        commands.spawn((
+            Sprite::from_image(assets.image(format!(
+                "{}-{}",
+                building.color.to_name(),
+                building.name.to_name()
+            ))),
+            Transform {
+                translation: building.position.extend(BUILDINGS_Z),
+                scale: Vec3::splat(0.6),
+                ..default()
+            },
+            MapCmp,
+        ));
+    }
 
     // Draw speed indicator
     commands.spawn((

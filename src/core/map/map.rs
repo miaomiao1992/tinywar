@@ -3,13 +3,7 @@ use bevy::asset::Handle;
 use bevy::image::Image;
 use bevy_ecs_tilemap::prelude::*;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub enum MapSize {
-    Small,
-    Medium,
-    Large,
-}
+use crate::core::constants::GRID_SIZE;
 
 fn parse_map(map_str: &str) -> Vec<Vec<u32>> {
     let mut rows: Vec<Vec<u32>> = map_str
@@ -23,6 +17,23 @@ fn parse_map(map_str: &str) -> Vec<Vec<u32>> {
     rows.reverse();
 
     rows
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum MapSize {
+    Small,
+    Medium,
+    Large,
+}
+
+impl MapSize {
+    /// Building starting positions given by the tile position anchored at the center of the map
+    pub fn starting_positions(&self) -> [(f32, f32); 2] {
+        match self {
+            Self::Small => [(-6.5, 1.), (6.5, 1.)],
+            _ => todo!()
+        }
+    }
 }
 
 /// A tile layer on the map
@@ -89,7 +100,7 @@ impl Map {
 
         Self {
             size: TilemapSize::new(layer1.grid[0].len() as u32, layer1.grid.len() as u32),
-            grid_size: TilemapGridSize::new(64., 64.),
+            grid_size: TilemapGridSize::new(GRID_SIZE, GRID_SIZE),
             map_type: TilemapType::Square,
             layers: vec![layer0, layer1],
         }

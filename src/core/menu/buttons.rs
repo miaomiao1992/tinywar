@@ -1,15 +1,16 @@
 use bevy::prelude::*;
 use bevy::window::SystemCursorIcon;
-use bevy_renet::netcode::{NetcodeClientTransport, NetcodeServerTransport};
+use bevy_renet::netcode::NetcodeClientTransport;
 use bevy_renet::renet::{RenetClient, RenetServer};
 
 use crate::core::assets::WorldAssets;
 use crate::core::constants::*;
 use crate::core::menu::utils::{add_text, cursor, recolor};
-use crate::core::network::{new_renet_client, new_renet_server, Ip, ServerSendMsg};
+use crate::core::network::{new_renet_client, new_renet_server, Host, Ip, ServerSendMsg};
 use crate::core::persistence::{LoadGameMsg, SaveGameMsg};
-use crate::core::settings::Settings;
+use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::{AppState, GameState};
+use crate::core::units::buildings::Buildings;
 use crate::utils::NameFromEnum;
 
 #[derive(Component)]
@@ -44,7 +45,7 @@ pub fn on_click_menu_button(
     mut commands: Commands,
     btn_q: Query<(Option<&DisabledButton>, &MenuBtn)>,
     server: Option<ResMut<RenetServer>>,
-    mut client: Option<ResMut<RenetClient>>,
+    client: Option<Res<RenetClient>>,
     mut settings: ResMut<Settings>,
     ip: Res<Ip>,
     mut load_game_msg: MessageWriter<LoadGameMsg>,
@@ -54,6 +55,7 @@ pub fn on_click_menu_button(
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
+    assets: Local<WorldAssets>,
 ) {
     let (disabled, btn) = btn_q.get(event.entity).unwrap();
 
@@ -70,6 +72,10 @@ pub fn on_click_menu_button(
         },
         MenuBtn::NewGame => {
             if *app_state.get() == AppState::SinglePlayerMenu {
+                settings.enemy_color = match settings.color {
+                    PlayerColor::Red => PlayerColor::Blue,
+                    _ => PlayerColor::Red,
+                };
             } else {
                 let server = server.unwrap();
 
@@ -77,6 +83,8 @@ pub fn on_click_menu_button(
                 let n_players = clients.len() + 1;
             }
 
+            commands.insert_resource(Host);
+            commands.insert_resource(Buildings::new(&settings));
             next_app_state.set(AppState::Game);
         },
         MenuBtn::LoadGame => {
@@ -107,15 +115,6 @@ pub fn on_click_menu_button(
                 next_app_state.set(AppState::MainMenu);
             },
             AppState::Lobby | AppState::ConnectedLobby => {
-                if let Some(client) = client.as_mut() {
-                    client.disconnect();
-                    commands.remove_resource::<RenetClient>();
-                } else if let Some(mut server) = server {
-                    server.disconnect_all();
-                    commands.remove_resource::<RenetServer>();
-                    commands.remove_resource::<NetcodeServerTransport>();
-                }
-
                 next_app_state.set(AppState::MultiPlayerMenu);
             },
             AppState::Game => {
@@ -138,15 +137,6 @@ pub fn on_click_menu_button(
         },
         MenuBtn::Quit => match *app_state.get() {
             AppState::Game => {
-                if let Some(client) = client.as_mut() {
-                    client.disconnect();
-                    commands.remove_resource::<RenetClient>();
-                } else if let Some(mut server) = server {
-                    server.disconnect_all();
-                    commands.remove_resource::<RenetServer>();
-                    commands.remove_resource::<NetcodeServerTransport>();
-                }
-
                 next_game_state.set(GameState::default());
                 next_app_state.set(AppState::MainMenu)
             },

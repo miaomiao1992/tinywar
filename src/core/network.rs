@@ -9,7 +9,7 @@ use bincode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
 
 use crate::core::menu::buttons::LobbyTextCmp;
-use crate::core::settings::Settings;
+use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::{AppState, GameState};
 use crate::utils::get_local_ip;
 
@@ -72,9 +72,7 @@ pub enum ServerMessage {
 
 #[derive(Serialize, Deserialize)]
 pub enum ClientMessage {
-    EndTurn {
-        end_turn: bool,
-    },
+    ShareColor(PlayerColor),
 }
 
 pub fn new_renet_client(ip: &String) -> (RenetClient, NetcodeClientTransport) {
@@ -176,14 +174,12 @@ pub fn server_send_message(
     }
 }
 
-pub fn server_receive_message(mut server: ResMut<RenetServer>) {
+pub fn server_receive_message(mut server: ResMut<RenetServer>, mut settings: ResMut<Settings>) {
     for id in server.clients_id() {
         while let Some(message) = server.receive_message(id, DefaultChannel::ReliableOrdered) {
             let (d, _) = decode_from_slice(&message, standard()).unwrap();
             match d {
-                ClientMessage::EndTurn {
-                    end_turn,
-                } => {},
+                ClientMessage::ShareColor(enemy_color) => settings.enemy_color = enemy_color,
             }
         }
     }
@@ -214,6 +210,9 @@ pub fn client_receive_message(
                 if let Ok(mut text) = n_players_q.single_mut() {
                     text.0 = format!("There are {i} players in the lobby.\nWaiting for the host to start the game...");
                 }
+
+                client_send_msg
+                    .write(ClientSendMsg::new(ClientMessage::ShareColor(settings.color)));
             },
             ServerMessage::StartGame {
                 id,

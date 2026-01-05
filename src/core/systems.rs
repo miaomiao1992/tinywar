@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 use bevy::window::WindowResized;
-use bevy_renet::netcode::NetcodeServerTransport;
-use bevy_renet::renet::{RenetClient, RenetServer};
 
 use crate::core::menu::utils::TextSize;
 use crate::core::settings::Settings;
@@ -19,13 +17,10 @@ pub fn on_resize_system(
 }
 
 pub fn check_keys_menu(
-    mut commands: Commands,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
-    server: Option<ResMut<RenetServer>>,
-    mut client: Option<ResMut<RenetClient>>,
     keyboard: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard.just_pressed(KeyCode::Escape) {
@@ -34,15 +29,6 @@ pub fn check_keys_menu(
                 next_app_state.set(AppState::MainMenu)
             },
             AppState::Lobby | AppState::ConnectedLobby => {
-                if let Some(client) = client.as_mut() {
-                    client.disconnect();
-                    commands.remove_resource::<RenetClient>();
-                } else if let Some(mut server) = server {
-                    server.disconnect_all();
-                    commands.remove_resource::<RenetServer>();
-                    commands.remove_resource::<NetcodeServerTransport>();
-                }
-
                 next_app_state.set(AppState::MultiPlayerMenu)
             },
             AppState::Game => match game_state.get() {

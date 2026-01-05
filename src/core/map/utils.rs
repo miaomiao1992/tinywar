@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::{TileBundle, TileTextureIndex};
+use bevy_ecs_tilemap::prelude::*;
 use bevy_tweening::Lens;
 
 /// Tween: sprite texture cycle

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::settings::PlayerColor;
-use crate::core::units::buildings::Building;
+use crate::core::units::buildings::BuildingName;
 use crate::utils::NameFromEnum;
 use bevy::asset::AssetServer;
 use bevy::prelude::*;
@@ -74,7 +74,7 @@ impl FromWorld for WorldAssets {
         ]);
 
         for color in PlayerColor::iter() {
-            for building in Building::iter() {
+            for building in BuildingName::iter() {
                 let name =
                     Box::leak(Box::new(format!("{}-{}", color.to_name(), building.to_name())))
                         .as_str();

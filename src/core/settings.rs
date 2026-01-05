@@ -16,6 +16,7 @@ pub enum PlayerColor {
 #[derive(Resource, Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub color: PlayerColor,
+    pub enemy_color: PlayerColor,
     pub map_size: MapSize,
     pub speed: f32,
     pub audio: AudioState,
@@ -26,6 +27,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             color: PlayerColor::Blue,
+            enemy_color: PlayerColor::Red,
             map_size: MapSize::Small,
             speed: 1.0,
             audio: AudioState::default(),

@@ -83,9 +83,8 @@ pub fn save_game(
 ) {
     let save_game = |autosave: bool| {
         let file_path = if autosave {
-            let today = chrono::Local::now().format("%d%m%Y");
             let mut path = current_dir().expect("Failed to get current directory.");
-            path.push(format!("{TITLE}_{today}"));
+            path.push(TITLE);
             Some(path)
         } else {
             FileDialog::new().save_file()

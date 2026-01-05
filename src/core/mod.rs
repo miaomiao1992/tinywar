@@ -17,7 +17,9 @@ use crate::core::camera::{move_camera, move_camera_keyboard, setup_camera};
 use crate::core::constants::WATER_COLOR;
 use crate::core::map::systems::{draw_map, update_map};
 use crate::core::menu::buttons::MenuCmp;
-use crate::core::menu::systems::{setup_game_menu, setup_game_settings, setup_menu, update_ip};
+use crate::core::menu::systems::{
+    exit_multiplayer_lobby, setup_game_menu, setup_game_settings, setup_menu, update_ip,
+};
 use crate::core::network::*;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::core::persistence::{load_game, save_game};
@@ -116,7 +118,7 @@ impl Plugin for GamePlugin {
         // Menu
         for state in AppState::iter().filter(|s| *s != AppState::Game) {
             app.add_systems(OnEnter(state), setup_menu)
-                .add_systems(OnExit(state), despawn::<MenuCmp>);
+                .add_systems(OnExit(state), (exit_multiplayer_lobby, despawn::<MenuCmp>));
         }
         app.add_systems(Update, update_ip.run_if(in_state(AppState::MultiPlayerMenu)));
 
@@ -127,6 +129,7 @@ impl Plugin for GamePlugin {
             // In-game states
             .add_systems(OnEnter(AppState::Game), draw_map)
             .add_systems(Update, update_map.in_set(InGameSet))
+            .add_systems(OnExit(AppState::Game), exit_multiplayer_lobby)
             .add_systems(OnEnter(GameState::GameMenu), setup_game_menu)
             .add_systems(OnExit(GameState::GameMenu), despawn::<MenuCmp>)
             .add_systems(OnEnter(GameState::Settings), setup_game_settings)

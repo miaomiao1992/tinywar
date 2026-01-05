@@ -24,6 +24,7 @@ use crate::utils::NameFromEnum;
 
 pub const TITLE: &str = "TinyWar";
 
+#[allow(dead_code)]
 static LOG_FILE: Mutex<Option<File>> = Mutex::new(None);
 
 fn main() {
@@ -69,6 +70,7 @@ fn main() {
     app.run();
 }
 
+#[allow(dead_code)]
 fn init_panic_logger() {
     panic::set_hook(Box::new(|info| {
         let mut guard = LOG_FILE.lock().unwrap();

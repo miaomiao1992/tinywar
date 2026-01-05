@@ -1,7 +1,8 @@
 use std::net::IpAddr;
 
 use bevy::prelude::*;
-use bevy_renet::renet::RenetServer;
+use bevy_renet::netcode::NetcodeServerTransport;
+use bevy_renet::renet::{RenetClient, RenetServer};
 
 use crate::core::assets::WorldAssets;
 use crate::core::constants::{
@@ -325,4 +326,19 @@ pub fn setup_game_settings(
 
         spawn_menu_button(parent, MenuBtn::Back, &assets, &window);
     });
+}
+
+pub fn exit_multiplayer_lobby(
+    mut commands: Commands,
+    server: Option<ResMut<RenetServer>>,
+    mut client: Option<ResMut<RenetClient>>,
+) {
+    if let Some(client) = client.as_mut() {
+        client.disconnect();
+        commands.remove_resource::<RenetClient>();
+    } else if let Some(mut server) = server {
+        server.disconnect_all();
+        commands.remove_resource::<RenetServer>();
+        commands.remove_resource::<NetcodeServerTransport>();
+    }
 }

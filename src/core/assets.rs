@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::core::settings::PlayerColor;
 use crate::core::units::buildings::BuildingName;
+use crate::core::units::soldiers::SoldierName;
 use crate::utils::NameFromEnum;
 use bevy::asset::AssetServer;
 use bevy::prelude::*;
@@ -54,7 +55,10 @@ impl FromWorld for WorldAssets {
     fn from_world(world: &mut World) -> Self {
         let assets = world.get_resource::<AssetServer>().unwrap();
 
-        let audio = HashMap::from([]);
+        let audio = HashMap::from([
+            ("button", assets.load("audio/button.ogg")),
+            ("error", assets.load("audio/error.ogg")),
+        ]);
 
         let fonts = HashMap::from([
             ("bold", assets.load("fonts/FiraSans-Bold.ttf")),
@@ -85,6 +89,21 @@ impl FromWorld for WorldAssets {
                         "images/buildings/{}/{}.png",
                         color.to_name(),
                         building.to_name()
+                    )),
+                );
+            }
+
+            for soldier in SoldierName::iter() {
+                let name =
+                    Box::leak(Box::new(format!("{}-{}", color.to_name(), soldier.to_name())))
+                        .as_str();
+
+                images.insert(
+                    &name,
+                    assets.load(&format!(
+                        "images/soldiers/{}/{}.png",
+                        color.to_name(),
+                        soldier.to_name()
                     )),
                 );
             }

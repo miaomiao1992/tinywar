@@ -8,9 +8,9 @@ use crate::core::constants::*;
 use crate::core::menu::utils::{add_text, cursor, recolor};
 use crate::core::network::{new_renet_client, new_renet_server, Host, Ip, ServerSendMsg};
 use crate::core::persistence::{LoadGameMsg, SaveGameMsg};
+use crate::core::player::{Player, Players};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::{AppState, GameState};
-use crate::core::units::buildings::Buildings;
 use crate::utils::NameFromEnum;
 
 #[derive(Component)]
@@ -55,7 +55,6 @@ pub fn on_click_menu_button(
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
-    assets: Local<WorldAssets>,
 ) {
     let (disabled, btn) = btn_q.get(event.entity).unwrap();
 
@@ -71,20 +70,30 @@ pub fn on_click_menu_button(
             next_app_state.set(AppState::MultiPlayerMenu);
         },
         MenuBtn::NewGame => {
-            if *app_state.get() == AppState::SinglePlayerMenu {
+            let coord = |pos: (f32, f32)| Vec2::new(GRID_SIZE * pos.0, GRID_SIZE * pos.1);
+
+            // Get the coordinates to place the starting buildings
+            let positions = settings.map_size.starting_positions();
+
+            let enemy_id = if *app_state.get() == AppState::SinglePlayerMenu {
                 settings.enemy_color = match settings.color {
                     PlayerColor::Red => PlayerColor::Blue,
                     _ => PlayerColor::Red,
                 };
+
+                1
             } else {
                 let server = server.unwrap();
 
-                let clients = server.clients_id();
-                let n_players = clients.len() + 1;
-            }
+                *server.clients_id().first().unwrap()
+            };
 
             commands.insert_resource(Host);
-            commands.insert_resource(Buildings::new(&settings));
+            commands.insert_resource(Players {
+                me: Player::new(0, settings.color, coord(positions[0])),
+                enemy: Player::new(enemy_id, settings.enemy_color, coord(positions[1])),
+            });
+            next_game_state.set(GameState::default());
             next_app_state.set(AppState::Game);
         },
         MenuBtn::LoadGame => {

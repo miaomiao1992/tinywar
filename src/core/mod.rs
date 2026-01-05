@@ -3,9 +3,11 @@ mod audio;
 mod camera;
 mod constants;
 pub mod map;
+mod mechanics;
 mod menu;
 mod network;
 mod persistence;
+mod player;
 mod settings;
 mod states;
 mod systems;
@@ -13,9 +15,13 @@ mod units;
 mod utils;
 
 use crate::core::audio::*;
-use crate::core::camera::{move_camera, move_camera_keyboard, setup_camera};
+use crate::core::camera::{move_camera, move_camera_keyboard, reset_camera, setup_camera};
 use crate::core::constants::WATER_COLOR;
-use crate::core::map::systems::{draw_map, update_map};
+use crate::core::map::systems::{draw_map, MapCmp};
+use crate::core::map::ui::systems::{draw_ui, update_ui};
+use crate::core::mechanics::queue::{
+    queue_keyboard, queue_message, resolve_queue, QueueSoldierMsg,
+};
 use crate::core::menu::buttons::MenuCmp;
 use crate::core::menu::systems::{
     exit_multiplayer_lobby, setup_game_menu, setup_game_settings, setup_menu, update_ip,
@@ -57,6 +63,7 @@ impl Plugin for GamePlugin {
             .add_message::<ClientSendMsg>()
             .add_message::<SaveGameMsg>()
             .add_message::<LoadGameMsg>()
+            .add_message::<QueueSoldierMsg>()
             // Resources
             .insert_resource(ClearColor(WATER_COLOR))
             .init_resource::<Ip>()
@@ -127,9 +134,16 @@ impl Plugin for GamePlugin {
             .add_systems(Update, (check_keys_menu, check_keys_game.in_set(InGameSet)))
             .add_systems(PostUpdate, on_resize_system)
             // In-game states
-            .add_systems(OnEnter(AppState::Game), draw_map)
-            .add_systems(Update, update_map.in_set(InGameSet))
-            .add_systems(OnExit(AppState::Game), exit_multiplayer_lobby)
+            .add_systems(OnEnter(AppState::Game), (draw_map, draw_ui))
+            .add_systems(Update, update_ui.in_set(InGameSet))
+            .add_systems(
+                Update,
+                (queue_keyboard, queue_message, resolve_queue).in_set(InPlayingGameSet),
+            )
+            .add_systems(
+                OnExit(AppState::Game),
+                (despawn::<MapCmp>, reset_camera, exit_multiplayer_lobby),
+            )
             .add_systems(OnEnter(GameState::GameMenu), setup_game_menu)
             .add_systems(OnExit(GameState::GameMenu), despawn::<MenuCmp>)
             .add_systems(OnEnter(GameState::Settings), setup_game_settings)

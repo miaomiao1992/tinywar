@@ -1,9 +1,9 @@
 use crate::core::assets::WorldAssets;
+use crate::core::constants::GRID_SIZE;
 use bevy::asset::Handle;
 use bevy::image::Image;
 use bevy_ecs_tilemap::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::core::constants::GRID_SIZE;
 
 fn parse_map(map_str: &str) -> Vec<Vec<u32>> {
     let mut rows: Vec<Vec<u32>> = map_str
@@ -31,7 +31,7 @@ impl MapSize {
     pub fn starting_positions(&self) -> [(f32, f32); 2] {
         match self {
             Self::Small => [(-6.5, 1.), (6.5, 1.)],
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }

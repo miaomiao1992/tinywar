@@ -3,9 +3,9 @@ use crate::core::constants::{BUILDINGS_Z, MAP_Z};
 use crate::core::map::map::Map;
 use crate::core::map::utils::TileTextureLens;
 use crate::core::menu::utils::add_text;
+use crate::core::player::Players;
 use crate::core::settings::Settings;
 use crate::core::states::GameState;
-use crate::core::units::buildings::Buildings;
 use crate::utils::NameFromEnum;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
@@ -25,8 +25,7 @@ pub struct BgAnimCmp;
 pub fn draw_map(
     mut commands: Commands,
     settings: Res<Settings>,
-    buildings: Res<Buildings>,
-    window: Single<&Window>,
+    players: Res<Players>,
     assets: Local<WorldAssets>,
 ) {
     let mut rng = rng();
@@ -92,61 +91,21 @@ pub fn draw_map(
     }
 
     // Draw buildings
-    for building in buildings.iter() {
-        commands.spawn((
-            Sprite::from_image(assets.image(format!(
-                "{}-{}",
-                building.color.to_name(),
-                building.name.to_name()
-            ))),
-            Transform {
-                translation: building.position.extend(BUILDINGS_Z),
-                scale: Vec3::splat(0.6),
-                ..default()
-            },
-            MapCmp,
-        ));
+    for player in players.iter() {
+        for building in &player.buildings {
+            commands.spawn((
+                Sprite::from_image(assets.image(format!(
+                    "{}-{}",
+                    player.color.to_name(),
+                    building.name.to_name()
+                ))),
+                Transform {
+                    translation: building.position.extend(BUILDINGS_Z),
+                    scale: Vec3::splat(0.6),
+                    ..default()
+                },
+                MapCmp,
+            ));
+        }
     }
-
-    // Draw speed indicator
-    commands.spawn((
-        Node {
-            bottom: Val::Px(10.),
-            left: Val::Px(10.),
-            position_type: PositionType::Absolute,
-            ..default()
-        },
-        add_text(format!("{}x", settings.speed), "medium", 10., &assets, &window),
-        SpeedCmp,
-        MapCmp,
-    ));
-}
-
-pub fn update_map(
-    mut anim_q: Query<(&mut TweenAnim, Option<&BgAnimCmp>)>,
-    mut speed_q: Single<&mut Text, With<SpeedCmp>>,
-    game_state: Res<State<GameState>>,
-    settings: Res<Settings>,
-) {
-    // Play/pause tween animations
-    anim_q.iter_mut().for_each(|(mut t, a)| match game_state.get() {
-        GameState::Playing => {
-            t.playback_state = PlaybackState::Playing;
-            if a.is_none() {
-                // Ignore background animations (e.g., water foam) from speed changes
-                t.speed = settings.speed as f64;
-            }
-        },
-        _ => t.playback_state = PlaybackState::Paused,
-    });
-
-    // Update speed indicator
-    speed_q.as_mut().0 = format!(
-        "{}x{}",
-        settings.speed,
-        match game_state.get() {
-            GameState::Playing => "",
-            _ => " - paused",
-        },
-    );
 }

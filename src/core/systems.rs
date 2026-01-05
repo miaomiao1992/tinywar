@@ -48,15 +48,17 @@ pub fn check_keys_game(
     mut next_game_state: ResMut<NextState<GameState>>,
     mut settings: ResMut<Settings>,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
-        match game_state.get() {
-            GameState::Playing => next_game_state.set(GameState::Paused),
-            GameState::Paused => next_game_state.set(GameState::Playing),
-            _ => (),
+    if matches!(game_state.get(), GameState::Playing | GameState::Paused) {
+        if keyboard.just_pressed(KeyCode::Space) {
+            match game_state.get() {
+                GameState::Playing => next_game_state.set(GameState::Paused),
+                GameState::Paused => next_game_state.set(GameState::Playing),
+                _ => unreachable!(),
+            }
+        } else if keyboard.just_released(KeyCode::ArrowRight) {
+            settings.speed = (settings.speed * 2.).min(64.0);
+        } else if keyboard.just_released(KeyCode::ArrowLeft) {
+            settings.speed = (settings.speed * 0.5).max(0.25);
         }
-    } else if keyboard.just_released(KeyCode::ArrowRight) {
-        settings.speed = (settings.speed * 2.).min(64.0);
-    } else if keyboard.just_released(KeyCode::ArrowLeft) {
-        settings.speed = (settings.speed * 0.5).max(0.25);
     }
 }

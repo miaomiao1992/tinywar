@@ -15,17 +15,14 @@ mod units;
 mod utils;
 
 use crate::core::audio::*;
-use crate::core::camera::{move_camera, move_camera_keyboard, reset_camera, setup_camera};
+use crate::core::camera::*;
 use crate::core::constants::WATER_COLOR;
 use crate::core::map::systems::{draw_map, MapCmp};
 use crate::core::map::ui::systems::{draw_ui, update_ui};
-use crate::core::mechanics::queue::{
-    queue_keyboard, queue_message, resolve_queue, QueueSoldierMsg,
-};
+use crate::core::mechanics::queue::*;
+use crate::core::mechanics::spawn::*;
 use crate::core::menu::buttons::MenuCmp;
-use crate::core::menu::systems::{
-    exit_multiplayer_lobby, setup_game_menu, setup_game_settings, setup_menu, update_ip,
-};
+use crate::core::menu::systems::*;
 use crate::core::network::*;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::core::persistence::{load_game, save_game};
@@ -63,7 +60,9 @@ impl Plugin for GamePlugin {
             .add_message::<ClientSendMsg>()
             .add_message::<SaveGameMsg>()
             .add_message::<LoadGameMsg>()
-            .add_message::<QueueSoldierMsg>()
+            .add_message::<QueueUnitMsg>()
+            .add_message::<SpawnBuildingMsg>()
+            .add_message::<SpawnUnitMsg>()
             // Resources
             .insert_resource(ClearColor(WATER_COLOR))
             .init_resource::<Ip>()
@@ -138,7 +137,14 @@ impl Plugin for GamePlugin {
             .add_systems(Update, update_ui.in_set(InGameSet))
             .add_systems(
                 Update,
-                (queue_keyboard, queue_message, resolve_queue).in_set(InPlayingGameSet),
+                (
+                    queue_keyboard,
+                    queue_message,
+                    queue_resolve,
+                    spawn_unit_message,
+                    spawn_building_message,
+                )
+                    .in_set(InPlayingGameSet),
             )
             .add_systems(
                 OnExit(AppState::Game),

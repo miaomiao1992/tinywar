@@ -1,24 +1,27 @@
+use crate::core::settings::PlayerColor;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-#[derive(EnumIter, Clone, Debug, Serialize, Deserialize)]
+#[derive(EnumIter, Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum BuildingName {
-    Barracks,
+    #[default]
     Castle,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Building {
     pub name: BuildingName,
-    pub position: Vec2,
+    pub color: PlayerColor,
+    pub is_base: bool,
 }
 
 impl Building {
-    pub fn new(name: BuildingName, position: Vec2) -> Self {
+    pub fn new(name: BuildingName, color: PlayerColor, is_base: bool) -> Self {
         Self {
             name,
-            position,
+            color,
+            is_base,
         }
     }
 }

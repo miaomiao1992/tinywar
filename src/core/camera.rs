@@ -43,12 +43,12 @@ pub fn move_camera(
         panic!("Expected Orthographic projection.");
     };
 
-    for ev in scroll_msg.read() {
+    for msg in scroll_msg.read() {
         // Get cursor position in window space
         if let Some(cursor_pos) = window.cursor_position() {
             // Convert to world space
             if let Ok(world_pos) = camera.viewport_to_world_2d(global_t, cursor_pos) {
-                let scale_change = if ev.y > 0. {
+                let scale_change = if msg.y > 0. {
                     1. / ZOOM_FACTOR
                 } else {
                     ZOOM_FACTOR
@@ -68,13 +68,13 @@ pub fn move_camera(
 
     if mouse.pressed(MouseButton::Left) {
         commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Grab));
-        for ev in motion_ev.read() {
+        for msg in motion_ev.read() {
             commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Grabbing));
-            if ev.delta.x.is_nan() || ev.delta.y.is_nan() {
+            if msg.delta.x.is_nan() || msg.delta.y.is_nan() {
                 continue;
             }
-            camera_t.translation.x -= ev.delta.x * projection.scale;
-            camera_t.translation.y += ev.delta.y * projection.scale;
+            camera_t.translation.x -= msg.delta.x * projection.scale;
+            camera_t.translation.y += msg.delta.y * projection.scale;
         }
     } else {
         commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Default));

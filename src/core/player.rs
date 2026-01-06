@@ -1,6 +1,5 @@
 use crate::core::settings::PlayerColor;
-use crate::core::units::buildings::{Building, BuildingName};
-use crate::core::units::soldiers::{Soldier, SoldierName};
+use crate::core::units::units::UnitName;
 use bevy::prelude::*;
 use bevy_renet::renet::ClientId;
 use serde::{Deserialize, Serialize};
@@ -8,24 +7,35 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct QueuedUnit {
+    pub unit: UnitName,
+    pub timer: Timer,
+}
+
+impl QueuedUnit {
+    pub fn new(unit: UnitName, millis: u64) -> QueuedUnit {
+        Self {
+            unit,
+            timer: Timer::new(Duration::from_millis(millis), TimerMode::Once),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
     pub id: ClientId,
     pub color: PlayerColor,
-    pub buildings: Vec<Building>,
-    pub soldiers: Vec<Soldier>,
-    pub queue: VecDeque<SoldierName>,
-    pub queue_timer: Duration,
+    pub queue: VecDeque<QueuedUnit>,
+    pub queue_default: UnitName,
 }
 
 impl Player {
-    pub fn new(id: ClientId, color: PlayerColor, pos: Vec2) -> Self {
+    pub fn new(id: ClientId, color: PlayerColor) -> Self {
         Self {
             id,
             color,
-            buildings: vec![Building::new(BuildingName::Castle, pos)],
-            soldiers: vec![],
             queue: VecDeque::new(),
-            queue_timer: Duration::default(),
+            queue_default: UnitName::default(),
         }
     }
 
@@ -59,5 +69,9 @@ impl Players {
 
     pub fn iter(&self) -> impl Iterator<Item = &Player> {
         [&self.me, &self.enemy].into_iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Player> {
+        [&mut self.me, &mut self.enemy].into_iter()
     }
 }

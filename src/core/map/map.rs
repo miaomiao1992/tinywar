@@ -1,5 +1,5 @@
 use crate::core::assets::WorldAssets;
-use crate::core::constants::GRID_SIZE;
+use crate::core::constants::{GRID_SIZE, TILE_SIZE};
 use bevy::asset::Handle;
 use bevy::image::Image;
 use bevy_ecs_tilemap::prelude::*;
@@ -79,7 +79,7 @@ impl Map {
         // The foam layer
         let layer0 = Layer {
             texture: assets.image("foam"),
-            tile_size: TilemapTileSize::new(192., 192.),
+            tile_size: TilemapTileSize::new(TILE_SIZE, TILE_SIZE),
             grid: layer1
                 .grid
                 .iter()

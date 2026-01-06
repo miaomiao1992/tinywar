@@ -3,9 +3,9 @@ use crate::core::constants::MAX_QUEUE_LENGTH;
 use crate::core::map::systems::{BgAnimCmp, MapCmp, SpeedCmp};
 use crate::core::menu::utils::add_text;
 use crate::core::player::Players;
-use crate::core::settings::Settings;
+use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::GameState;
-use crate::core::units::soldiers::SoldierName;
+use crate::core::units::units::UnitName;
 use crate::utils::NameFromEnum;
 use bevy::prelude::*;
 use bevy_tweening::{PlaybackState, TweenAnim};
@@ -14,19 +14,7 @@ use bevy_tweening::{PlaybackState, TweenAnim};
 pub struct UiCmp;
 
 #[derive(Component)]
-pub struct QueueButtonCmp {
-    pub position: usize,
-    pub soldier: SoldierName,
-}
-
-impl QueueButtonCmp {
-    pub fn new(position: usize, soldier: SoldierName) -> Self {
-        Self {
-            position,
-            soldier,
-        }
-    }
-}
+pub struct QueueButtonCmp(pub usize);
 
 pub fn draw_ui(
     mut commands: Commands,
@@ -58,18 +46,22 @@ pub fn draw_ui(
                             margin: UiRect::ZERO.with_left(Val::Percent(1.)),
                             ..default()
                         },
-                        ImageNode::new(assets.image("Blue-Warrior")),
-                        QueueButtonCmp::new(i, SoldierName::default()),
+                        ImageNode::new(assets.image(format!(
+                            "{}-{}",
+                            PlayerColor::Blue.to_name(),
+                            UnitName::default().to_name()
+                        ))),
+                        QueueButtonCmp(i),
                         Visibility::Hidden,
                     ))
                     .observe(
                         |event: On<Pointer<Click>>,
                          btn_q: Query<&QueueButtonCmp>,
                          mut players: ResMut<Players>| {
-                            // Remove soldier from queue if right-clicked
+                            // Remove unit from queue if right-clicked
                             if event.button == PointerButton::Secondary {
                                 if let Ok(button) = btn_q.get(event.entity) {
-                                    players.me.queue.remove(button.position);
+                                    players.me.queue.remove(button.0);
                                 }
                             }
                         },
@@ -101,14 +93,11 @@ pub fn update_ui(
     assets: Local<WorldAssets>,
 ) {
     for (mut visibility, mut image, button) in &mut queue_q {
-        if let Some(soldier) = players.me.queue.get(button.position) {
+        if let Some(queue) = players.me.queue.get(button.0) {
             *visibility = Visibility::Inherited;
 
-            image.image = assets.image(format!(
-                "{}-{}",
-                players.me.color.to_name(),
-                button.soldier.to_name()
-            ));
+            image.image =
+                assets.image(format!("{}-{}", players.me.color.to_name(), queue.unit.to_name()));
         } else {
             *visibility = Visibility::Hidden;
         }

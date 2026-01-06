@@ -121,8 +121,8 @@ pub fn server_update(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    for ev in server_msg.read() {
-        match ev {
+    for msg in server_msg.read() {
+        match msg {
             ServerEvent::ClientConnected {
                 client_id,
             } => {
@@ -164,9 +164,9 @@ pub fn server_send_message(
     mut server_send_msg: MessageReader<ServerSendMsg>,
     mut server: ResMut<RenetServer>,
 ) {
-    for ev in server_send_msg.read() {
-        let message = encode_to_vec(&ev.message, standard()).unwrap();
-        if let Some(client_id) = ev.client {
+    for msg in server_send_msg.read() {
+        let message = encode_to_vec(&msg.message, standard()).unwrap();
+        if let Some(client_id) = msg.client {
             server.send_message(client_id, DefaultChannel::ReliableOrdered, message);
         } else {
             server.broadcast_message(DefaultChannel::ReliableOrdered, message);
@@ -189,8 +189,8 @@ pub fn client_send_message(
     mut client_send_msg: MessageReader<ClientSendMsg>,
     mut client: ResMut<RenetClient>,
 ) {
-    for ev in client_send_msg.read() {
-        let message = encode_to_vec(&ev.message, standard()).unwrap();
+    for msg in client_send_msg.read() {
+        let message = encode_to_vec(&msg.message, standard()).unwrap();
         client.send_message(DefaultChannel::ReliableOrdered, message);
     }
 }

@@ -17,9 +17,11 @@ pub const LERP_FACTOR: f32 = 0.05;
 
 /// Map
 pub const WATER_COLOR: Color = Color::srgb_u8(71, 171, 169);
+pub const TILE_SIZE: f32 = 192.;
 pub const GRID_SIZE: f32 = 64.;
 pub const MAP_Z: f32 = 0.;
 pub const BUILDINGS_Z: f32 = 1.;
+pub const UNITS_Z: f32 = 2.;
 
 /// Game settings
 pub const MAX_QUEUE_LENGTH: usize = 12;

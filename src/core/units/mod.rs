@@ -1,2 +1,2 @@
 pub mod buildings;
-pub mod soldiers;
+pub mod units;

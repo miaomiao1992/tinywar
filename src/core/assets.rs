@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use crate::core::constants::TILE_SIZE;
 use crate::core::settings::PlayerColor;
 use crate::core::units::buildings::BuildingName;
-use crate::core::units::soldiers::SoldierName;
+use crate::core::units::units::{Action, UnitName};
 use crate::utils::NameFromEnum;
 use bevy::asset::AssetServer;
 use bevy::prelude::*;
@@ -56,6 +57,7 @@ impl FromWorld for WorldAssets {
         let assets = world.get_resource::<AssetServer>().unwrap();
 
         let audio = HashMap::from([
+            ("music", assets.load("audio/music.ogg")),
             ("button", assets.load("audio/button.ogg")),
             ("error", assets.load("audio/error.ogg")),
         ]);
@@ -77,6 +79,8 @@ impl FromWorld for WorldAssets {
             ("foam", assets.load("images/map/foam.png")),
         ]);
 
+        let mut textures: HashMap<&'static str, TextureInfo> = HashMap::new();
+
         for color in PlayerColor::iter() {
             for building in BuildingName::iter() {
                 let name =
@@ -93,25 +97,76 @@ impl FromWorld for WorldAssets {
                 );
             }
 
-            for soldier in SoldierName::iter() {
+            for unit in UnitName::iter() {
                 let name =
-                    Box::leak(Box::new(format!("{}-{}", color.to_name(), soldier.to_name())))
-                        .as_str();
+                    Box::leak(Box::new(format!("{}-{}", color.to_name(), unit.to_name()))).as_str();
 
                 images.insert(
                     &name,
                     assets.load(&format!(
-                        "images/soldiers/{}/{}.png",
+                        "images/units/{}/{}.png",
                         color.to_name(),
-                        soldier.to_name()
+                        unit.to_name()
                     )),
                 );
+
+                for action in Action::iter() {
+                    let name = Box::leak(Box::new(format!(
+                        "{}-{}-{}",
+                        color.to_name(),
+                        unit.to_name(),
+                        action.to_name()
+                    )))
+                    .as_str();
+
+                    images.insert(
+                        name,
+                        assets.load(format!(
+                            "images/units/{}/{}_{}.png",
+                            color.to_name(),
+                            unit.to_name(),
+                            action.to_name()
+                        )),
+                    );
+                }
             }
         }
 
+        // Add textures separately since it requires mutable access to world
         let mut texture = world.get_resource_mut::<Assets<TextureAtlasLayout>>().unwrap();
+        for color in PlayerColor::iter() {
+            for unit in UnitName::iter() {
+                for action in Action::iter() {
+                    let name = Box::leak(Box::new(format!(
+                        "{}-{}-{}",
+                        color.to_name(),
+                        unit.to_name(),
+                        action.to_name()
+                    )))
+                    .as_str();
 
-        let textures: HashMap<&'static str, TextureInfo> = HashMap::from([]);
+                    let layout = TextureAtlasLayout::from_grid(
+                        UVec2::splat(unit.size() as u32),
+                        unit.frames(action),
+                        1,
+                        None,
+                        None,
+                    );
+
+                    textures.insert(
+                        name,
+                        TextureInfo {
+                            image: images[name].clone(),
+                            atlas: TextureAtlas {
+                                layout: texture.add(layout),
+                                index: 0,
+                            },
+                            last_index: unit.frames(action) as usize - 1,
+                        },
+                    );
+                }
+            }
+        }
 
         Self {
             audio,

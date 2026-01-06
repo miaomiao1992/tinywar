@@ -112,8 +112,8 @@ pub fn update_audio(
     mut mute_audio_msg: MessageWriter<MuteAudioMsg>,
     assets: Local<WorldAssets>,
 ) {
-    for ev in change_audio_msg.read() {
-        settings.audio = ev.0.unwrap_or(match *audio_state.get() {
+    for msg in change_audio_msg.read() {
+        settings.audio = msg.0.unwrap_or(match *audio_state.get() {
             AudioState::Mute => AudioState::NoMusic,
             AudioState::NoMusic => AudioState::Sound,
             AudioState::Sound => AudioState::Mute,
@@ -176,20 +176,20 @@ pub fn play_audio(
     audio: Res<Audio>,
     assets: Local<WorldAssets>,
 ) {
-    for message in play_audio_msg.read() {
+    for msg in play_audio_msg.read() {
         if *audio_state.get() != AudioState::Mute {
             let mut new_sound = false;
 
-            if let Some(handle) = playing_audio.0.get(message.name) {
+            if let Some(handle) = playing_audio.0.get(msg.name) {
                 if let Some(instance) = audio_instances.get_mut(handle) {
                     if matches!(
                         instance.state(),
                         PlaybackState::Paused { .. } | PlaybackState::Pausing { .. }
                     ) {
-                        if !message.is_background || *audio_state.get() != AudioState::NoMusic {
+                        if !msg.is_background || *audio_state.get() != AudioState::NoMusic {
                             instance.resume(PlayingAudio::TWEEN);
                         }
-                    } else if !message.is_background
+                    } else if !msg.is_background
                         || !matches!(
                             instance.state(),
                             PlaybackState::Playing { .. }
@@ -200,14 +200,14 @@ pub fn play_audio(
                         new_sound = true; // Audio finished playing
                     }
                 }
-            } else if message.is_background {
+            } else if msg.is_background {
                 if *audio_state.get() != AudioState::NoMusic {
                     playing_audio.0.insert(
-                        message.name,
+                        msg.name,
                         audio
-                            .play(assets.audio(message.name))
+                            .play(assets.audio(msg.name))
                             .fade_in(PlayingAudio::TWEEN)
-                            .with_volume(message.volume)
+                            .with_volume(msg.volume)
                             .looped()
                             .handle(),
                     );
@@ -218,8 +218,8 @@ pub fn play_audio(
 
             if new_sound {
                 playing_audio.0.insert(
-                    message.name,
-                    audio.play(assets.audio(message.name)).with_volume(message.volume).handle(),
+                    msg.name,
+                    audio.play(assets.audio(msg.name)).with_volume(msg.volume).handle(),
                 );
             }
         }
@@ -231,8 +231,8 @@ pub fn pause_audio(
     playing_audio: Res<PlayingAudio>,
     mut audio_instances: ResMut<Assets<AudioInstance>>,
 ) {
-    for message in pause_audio_msg.read() {
-        if let Some(handle) = playing_audio.0.get(message.name) {
+    for msg in pause_audio_msg.read() {
+        if let Some(handle) = playing_audio.0.get(msg.name) {
             if let Some(instance) = audio_instances.get_mut(handle) {
                 instance.pause(PlayingAudio::TWEEN);
             }
@@ -245,11 +245,11 @@ pub fn stop_audio(
     mut playing_audio: ResMut<PlayingAudio>,
     mut audio_instances: ResMut<Assets<AudioInstance>>,
 ) {
-    for message in stop_audio_msg.read() {
-        if let Some(handle) = playing_audio.0.get(message.name) {
+    for msg in stop_audio_msg.read() {
+        if let Some(handle) = playing_audio.0.get(msg.name) {
             if let Some(instance) = audio_instances.get_mut(handle) {
                 instance.stop(PlayingAudio::TWEEN);
-                playing_audio.0.remove(message.name);
+                playing_audio.0.remove(msg.name);
             }
         }
     }

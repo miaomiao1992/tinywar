@@ -1,15 +1,11 @@
 use crate::core::assets::WorldAssets;
-use crate::core::constants::{BUILDINGS_Z, MAP_Z};
+use crate::core::constants::MAP_Z;
 use crate::core::map::map::Map;
 use crate::core::map::utils::TileTextureLens;
-use crate::core::menu::utils::add_text;
-use crate::core::player::Players;
 use crate::core::settings::Settings;
-use crate::core::states::GameState;
-use crate::utils::NameFromEnum;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
-use bevy_tweening::{Delay, PlaybackState, RepeatCount, Tween, TweenAnim};
+use bevy_tweening::{Delay, RepeatCount, Tween, TweenAnim};
 use rand::{rng, Rng};
 use std::time::Duration;
 
@@ -22,12 +18,7 @@ pub struct SpeedCmp;
 #[derive(Component)]
 pub struct BgAnimCmp;
 
-pub fn draw_map(
-    mut commands: Commands,
-    settings: Res<Settings>,
-    players: Res<Players>,
-    assets: Local<WorldAssets>,
-) {
+pub fn draw_map(mut commands: Commands, settings: Res<Settings>, assets: Local<WorldAssets>) {
     let mut rng = rng();
 
     // Draw map
@@ -88,24 +79,5 @@ pub fn draw_map(
             transform: Transform::from_xyz(0., 0., MAP_Z + 0.1 * z as f32),
             ..default()
         });
-    }
-
-    // Draw buildings
-    for player in players.iter() {
-        for building in &player.buildings {
-            commands.spawn((
-                Sprite::from_image(assets.image(format!(
-                    "{}-{}",
-                    player.color.to_name(),
-                    building.name.to_name()
-                ))),
-                Transform {
-                    translation: building.position.extend(BUILDINGS_Z),
-                    scale: Vec3::splat(0.6),
-                    ..default()
-                },
-                MapCmp,
-            ));
-        }
     }
 }

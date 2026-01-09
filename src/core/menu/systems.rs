@@ -6,17 +6,23 @@ use bevy_renet::renet::{RenetClient, RenetServer};
 
 use crate::core::assets::WorldAssets;
 use crate::core::constants::{
-    BUTTON_TEXT_SIZE, DISABLED_BUTTON_COLOR, NORMAL_BUTTON_COLOR, TITLE_TEXT_SIZE,
+    BUTTON_TEXT_SIZE, DISABLED_BUTTON_COLOR, GRID_SIZE, NORMAL_BUTTON_COLOR, TITLE_TEXT_SIZE,
 };
+use crate::core::mechanics::spawn::SpawnBuildingMsg;
 use crate::core::menu::buttons::{
     spawn_menu_button, DisabledButton, IpTextCmp, LobbyTextCmp, MenuBtn, MenuCmp,
 };
 use crate::core::menu::settings::{spawn_label, SettingsBtn};
 use crate::core::menu::utils::{add_root_node, add_text};
-use crate::core::network::{Host, Ip};
-use crate::core::settings::Settings;
-use crate::core::states::AppState;
+use crate::core::network::{Host, Ip, ServerSendMsg};
+use crate::core::player::{Player, Players};
+use crate::core::settings::{PlayerColor, Settings};
+use crate::core::states::{AppState, GameState};
+use crate::core::units::buildings::BuildingName;
 use crate::utils::get_local_ip;
+
+#[derive(Message)]
+pub struct StartNewGameMsg;
 
 pub fn setup_menu(
     mut commands: Commands,
@@ -340,5 +346,58 @@ pub fn exit_multiplayer_lobby(
         server.disconnect_all();
         commands.remove_resource::<RenetServer>();
         commands.remove_resource::<NetcodeServerTransport>();
+    }
+}
+
+pub fn start_new_game_message(
+    mut commands: Commands,
+    mut start_new_game_msg: MessageReader<StartNewGameMsg>,
+    server: Option<ResMut<RenetServer>>,
+    mut settings: ResMut<Settings>,
+    mut server_send_msg: MessageWriter<ServerSendMsg>,
+    mut spawn_building_msg: MessageWriter<SpawnBuildingMsg>,
+    app_state: Res<State<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
+) {
+    if !start_new_game_msg.is_empty() {
+        let enemy_id = if *app_state.get() == AppState::SinglePlayerMenu {
+            settings.enemy_color = match settings.color {
+                PlayerColor::Red => PlayerColor::Blue,
+                _ => PlayerColor::Red,
+            };
+
+            1
+        } else {
+            let server = server.unwrap();
+            *server.clients_id().first().unwrap()
+        };
+
+        // Spawn starting buildings
+        let coord = |pos: (f32, f32)| Vec2::new(GRID_SIZE * pos.0, GRID_SIZE * pos.1);
+        let positions = settings.map_size.starting_positions();
+
+        spawn_building_msg.write(SpawnBuildingMsg::new(
+            0,
+            BuildingName::default(),
+            coord(positions[0]),
+            true,
+        ));
+        spawn_building_msg.write(SpawnBuildingMsg::new(
+            enemy_id,
+            BuildingName::default(),
+            coord(positions[1]),
+            true,
+        ));
+
+        commands.insert_resource(Host);
+        commands.insert_resource(Players {
+            me: Player::new(0, settings.color),
+            enemy: Player::new(enemy_id, settings.enemy_color),
+        });
+        next_game_state.set(GameState::default());
+        next_app_state.set(AppState::Game);
+
+        start_new_game_msg.clear();
     }
 }

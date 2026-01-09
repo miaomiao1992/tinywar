@@ -8,6 +8,8 @@ pub enum UnitName {
     #[default]
     Warrior,
     Lancer,
+    Archer,
+    Monk,
 }
 
 impl UnitName {
@@ -15,6 +17,8 @@ impl UnitName {
         match self {
             UnitName::Warrior => KeyCode::KeyZ,
             UnitName::Lancer => KeyCode::KeyX,
+            UnitName::Archer => KeyCode::KeyC,
+            UnitName::Monk => KeyCode::KeyV,
         }
     }
 
@@ -22,21 +26,16 @@ impl UnitName {
     pub fn spawn_duration(&self) -> u64 {
         match self {
             UnitName::Warrior => 2000,
-            UnitName::Lancer => 1000,
+            UnitName::Lancer => 2000,
+            UnitName::Archer => 3000,
+            UnitName::Monk => 4000,
         }
     }
 
     pub fn size(&self) -> f32 {
         match self {
-            UnitName::Warrior => 192.,
             UnitName::Lancer => 320.,
-        }
-    }
-
-    pub fn scale(&self) -> f32 {
-        match self {
-            UnitName::Warrior => 0.5,
-            UnitName::Lancer => 0.45,
+            _ => 192.,
         }
     }
 
@@ -47,6 +46,12 @@ impl UnitName {
             },
             UnitName::Lancer => match action {
                 Action::Idle => 12,
+            },
+            UnitName::Archer => match action {
+                Action::Idle => 6,
+            },
+            UnitName::Monk => match action {
+                Action::Idle => 6,
             },
         }
     }

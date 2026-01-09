@@ -41,7 +41,20 @@ pub struct GamePlugin;
 struct InGameSet;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-struct InPlayingGameSet;
+struct InPlayingSet;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+struct InPlayingOrPausedSet;
+
+macro_rules! configure_stages {
+    ($app:expr, $set:ident, $run_if:expr) => {
+        $app.configure_sets(First, $set.run_if($run_if))
+            .configure_sets(PreUpdate, $set.run_if($run_if))
+            .configure_sets(Update, $set.run_if($run_if))
+            .configure_sets(PostUpdate, $set.run_if($run_if))
+            .configure_sets(Last, $set.run_if($run_if));
+    };
+}
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
@@ -58,6 +71,7 @@ impl Plugin for GamePlugin {
             .add_message::<ChangeAudioMsg>()
             .add_message::<ServerSendMsg>()
             .add_message::<ClientSendMsg>()
+            .add_message::<StartNewGameMsg>()
             .add_message::<SaveGameMsg>()
             .add_message::<LoadGameMsg>()
             .add_message::<QueueUnitMsg>()
@@ -67,36 +81,27 @@ impl Plugin for GamePlugin {
             .insert_resource(ClearColor(WATER_COLOR))
             .init_resource::<Ip>()
             .init_resource::<PlayingAudio>()
-            .init_resource::<Settings>()
-            // Sets
-            .configure_sets(First, InGameSet.run_if(in_state(AppState::Game)))
-            .configure_sets(PreUpdate, InGameSet.run_if(in_state(AppState::Game)))
-            .configure_sets(Update, InGameSet.run_if(in_state(AppState::Game)))
-            .configure_sets(PostUpdate, InGameSet.run_if(in_state(AppState::Game)))
-            .configure_sets(Last, InGameSet.run_if(in_state(AppState::Game)))
-            .configure_sets(
-                First,
-                InPlayingGameSet.run_if(in_state(GameState::Playing)).in_set(InGameSet),
-            )
-            .configure_sets(
-                PreUpdate,
-                InPlayingGameSet.run_if(in_state(GameState::Playing)).in_set(InGameSet),
-            )
-            .configure_sets(
-                Update,
-                InPlayingGameSet.run_if(in_state(GameState::Playing)).in_set(InGameSet),
-            )
-            .configure_sets(
-                PostUpdate,
-                InPlayingGameSet.run_if(in_state(GameState::Playing)).in_set(InGameSet),
-            )
-            .configure_sets(
-                Last,
-                InPlayingGameSet.run_if(in_state(GameState::Playing)).in_set(InGameSet),
-            )
+            .init_resource::<Settings>();
+
+        // Sets
+        configure_stages!(app, InGameSet, in_state(AppState::Game));
+        configure_stages!(
+            app,
+            InPlayingSet,
+            in_state(GameState::Playing).and(in_state(AppState::Game))
+        );
+        configure_stages!(
+            app,
+            InPlayingOrPausedSet,
+            in_state(GameState::Playing)
+                .or(in_state(GameState::Paused))
+                .and(in_state(AppState::Game))
+        );
+
+        app
             // Camera
             .add_systems(Startup, setup_camera)
-            .add_systems(Update, (move_camera, move_camera_keyboard).in_set(InGameSet))
+            .add_systems(Update, (move_camera, move_camera_keyboard).in_set(InPlayingOrPausedSet))
             // Audio
             .add_systems(Startup, setup_audio)
             .add_systems(OnEnter(GameState::Playing), play_music)
@@ -126,7 +131,8 @@ impl Plugin for GamePlugin {
             app.add_systems(OnEnter(state), setup_menu)
                 .add_systems(OnExit(state), (exit_multiplayer_lobby, despawn::<MenuCmp>));
         }
-        app.add_systems(Update, update_ip.run_if(in_state(AppState::MultiPlayerMenu)));
+        app.add_systems(Update, update_ip.run_if(in_state(AppState::MultiPlayerMenu)))
+            .add_systems(Update, start_new_game_message.run_if(not(in_state(AppState::Game))));
 
         app
             // Utilities
@@ -135,16 +141,10 @@ impl Plugin for GamePlugin {
             // In-game states
             .add_systems(OnEnter(AppState::Game), (draw_map, draw_ui))
             .add_systems(Update, update_ui.in_set(InGameSet))
+            .add_systems(Update, (queue_keyboard, queue_message).in_set(InPlayingOrPausedSet))
             .add_systems(
                 Update,
-                (
-                    queue_keyboard,
-                    queue_message,
-                    queue_resolve,
-                    spawn_unit_message,
-                    spawn_building_message,
-                )
-                    .in_set(InPlayingGameSet),
+                (queue_resolve, spawn_unit_message, spawn_building_message).in_set(InPlayingSet),
             )
             .add_systems(
                 OnExit(AppState::Game),

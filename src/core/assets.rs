@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::core::constants::TILE_SIZE;
 use crate::core::settings::PlayerColor;
 use crate::core::units::buildings::BuildingName;
 use crate::core::units::units::{Action, UnitName};

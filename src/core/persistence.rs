@@ -4,14 +4,14 @@ use std::io;
 use std::io::{Read, Write};
 
 use bevy::prelude::*;
-use bevy_renet::renet::{ClientId, RenetServer};
+use bevy_renet::renet::RenetServer;
 use bincode::config::standard;
 use bincode::serde::{decode_from_slice, encode_to_vec};
 #[cfg(not(target_arch = "wasm32"))]
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
-use crate::core::network::{Host, ServerMessage, ServerSendMsg};
+use crate::core::network::{Host, ServerSendMsg};
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, AudioState};
 use crate::TITLE;

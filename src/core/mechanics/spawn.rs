@@ -103,14 +103,13 @@ pub fn spawn_unit_message(
         if let Some((base_t, _)) =
             building_q.iter().find(|(_, b)| b.color == player.color && b.is_base)
         {
-            let size = msg.unit.size();
             let bar_size = 192.;
 
             commands.spawn((
                 Sprite {
                     image: texture.image,
                     texture_atlas: Some(texture.atlas),
-                    custom_size: Some(Vec2::splat(size)),
+                    custom_size: Some(Vec2::splat(msg.unit.size())),
                     ..default()
                 },
                 Transform {
@@ -119,7 +118,7 @@ pub fn spawn_unit_message(
                         base_t.translation.y - 70.,
                         UNITS_Z,
                     ),
-                    scale: Vec3::splat(msg.unit.scale()),
+                    scale: Vec3::splat(0.5),
                     ..default()
                 },
                 TweenAnim::new(
@@ -138,7 +137,7 @@ pub fn spawn_unit_message(
                         custom_size: Some(Vec2::new(bar_size * 0.4, bar_size * 0.08)),
                         ..default()
                     },
-                    Transform::from_xyz(0., size * 0.33, 0.1),
+                    Transform::from_xyz(0., bar_size * 0.33, 0.1),
                     UnitHealthWrapperCmp,
                     children![(
                         Sprite {

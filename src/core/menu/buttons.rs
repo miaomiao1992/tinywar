@@ -1,18 +1,14 @@
 use bevy::prelude::*;
 use bevy::window::SystemCursorIcon;
-use bevy_renet::netcode::NetcodeClientTransport;
-use bevy_renet::renet::{RenetClient, RenetServer};
 
 use crate::core::assets::WorldAssets;
 use crate::core::constants::*;
-use crate::core::mechanics::spawn::SpawnBuildingMsg;
-use crate::core::menu::utils::{add_text, cursor, recolor};
-use crate::core::network::{new_renet_client, new_renet_server, Host, Ip, ServerSendMsg};
+use crate::core::menu::systems::StartNewGameMsg;
+use crate::core::menu::utils::{add_text, recolor};
+use crate::core::network::{new_renet_client, new_renet_server, Ip};
 use crate::core::persistence::{LoadGameMsg, SaveGameMsg};
-use crate::core::player::{Player, Players};
-use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::{AppState, GameState};
-use crate::core::units::buildings::BuildingName;
+use crate::core::utils::cursor;
 use crate::utils::NameFromEnum;
 
 #[derive(Component)]
@@ -46,14 +42,10 @@ pub fn on_click_menu_button(
     event: On<Pointer<Click>>,
     mut commands: Commands,
     btn_q: Query<(Option<&DisabledButton>, &MenuBtn)>,
-    server: Option<ResMut<RenetServer>>,
-    client: Option<Res<RenetClient>>,
-    mut settings: ResMut<Settings>,
     ip: Res<Ip>,
+    mut start_new_game_msg: MessageWriter<StartNewGameMsg>,
     mut load_game_msg: MessageWriter<LoadGameMsg>,
     mut save_game_msg: MessageWriter<SaveGameMsg>,
-    mut server_send_msg: MessageWriter<ServerSendMsg>,
-    mut spawn_building_msg: MessageWriter<SpawnBuildingMsg>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
@@ -73,53 +65,12 @@ pub fn on_click_menu_button(
             next_app_state.set(AppState::MultiPlayerMenu);
         },
         MenuBtn::NewGame => {
-            let enemy_id = if *app_state.get() == AppState::SinglePlayerMenu {
-                settings.enemy_color = match settings.color {
-                    PlayerColor::Red => PlayerColor::Blue,
-                    _ => PlayerColor::Red,
-                };
-
-                1
-            } else {
-                let server = server.unwrap();
-                *server.clients_id().first().unwrap()
-            };
-
-            // Spawn starting buildings
-            let coord = |pos: (f32, f32)| Vec2::new(GRID_SIZE * pos.0, GRID_SIZE * pos.1);
-            let positions = settings.map_size.starting_positions();
-
-            spawn_building_msg.write(SpawnBuildingMsg::new(
-                0,
-                BuildingName::default(),
-                coord(positions[0]),
-                true,
-            ));
-            spawn_building_msg.write(SpawnBuildingMsg::new(
-                enemy_id,
-                BuildingName::default(),
-                coord(positions[1]),
-                true,
-            ));
-
-            commands.insert_resource(Host);
-            commands.insert_resource(Players {
-                me: Player::new(0, settings.color),
-                enemy: Player::new(enemy_id, settings.enemy_color),
-            });
-            next_game_state.set(GameState::default());
-            next_app_state.set(AppState::Game);
+            start_new_game_msg.write(StartNewGameMsg);
         },
         MenuBtn::LoadGame => {
             load_game_msg.write(LoadGameMsg);
         },
         MenuBtn::HostGame => {
-            // Remove client resources if they exist
-            if client.is_some() {
-                commands.remove_resource::<RenetClient>();
-                commands.remove_resource::<NetcodeClientTransport>();
-            }
-
             let (server, transport) = new_renet_server();
             commands.insert_resource(server);
             commands.insert_resource(transport);

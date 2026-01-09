@@ -13,6 +13,18 @@ pub enum PlayerColor {
     Yellow,
 }
 
+impl PlayerColor {
+    pub fn color(self) -> Color {
+        match self {
+            Self::Black => Color::srgb_u8(214, 20, 41),
+            Self::Blue => Color::srgb_u8(71, 149, 167),
+            Self::Purple => Color::srgb_u8(163, 112, 150),
+            Self::Red => Color::srgb_u8(222, 84, 84),
+            Self::Yellow => Color::srgb_u8(220, 170, 70),
+        }
+    }
+}
+
 #[derive(Resource, Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub color: PlayerColor,

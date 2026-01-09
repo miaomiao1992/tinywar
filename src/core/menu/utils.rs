@@ -18,15 +18,6 @@ pub fn recolor<E: Debug + Clone + Reflect>(
     }
 }
 
-/// Set cursor icon on event
-pub fn cursor<T: Debug + Clone + Reflect>(
-    icon: SystemCursorIcon,
-) -> impl FnMut(On<Pointer<T>>, Commands, Single<Entity, With<Window>>) {
-    move |_: On<Pointer<T>>, mut commands: Commands, window_e: Single<Entity, With<Window>>| {
-        commands.entity(*window_e).insert(CursorIcon::from(icon));
-    }
-}
-
 /// Add a root UI node that covers the whole screen
 pub fn add_root_node(block: bool) -> (Node, Pickable) {
     (

@@ -26,7 +26,8 @@ pub fn setup_camera(mut commands: Commands) {
 
 pub fn move_camera(
     mut commands: Commands,
-    map: Query<(&TilemapSize, &TilemapGridSize)>,
+    map_q: Query<(&TilemapSize, &TilemapGridSize)>,
+    ui_q: Query<&Interaction, With<Node>>,
     camera_q: Single<
         (&Camera, &GlobalTransform, &mut Transform, &mut Projection),
         With<MainCamera>,
@@ -66,18 +67,23 @@ pub fn move_camera(
         }
     }
 
-    if mouse.pressed(MouseButton::Left) {
-        commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Grab));
-        for msg in motion_ev.read() {
-            commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Grabbing));
-            if msg.delta.x.is_nan() || msg.delta.y.is_nan() {
-                continue;
+    // Only act if not hovering a UI element
+    if !ui_q.iter().any(|i| *i != Interaction::None) {
+        if mouse.pressed(MouseButton::Left) {
+            commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Grab));
+            for msg in motion_ev.read() {
+                commands
+                    .entity(window_e)
+                    .insert(Into::<CursorIcon>::into(SystemCursorIcon::Grabbing));
+                if msg.delta.x.is_nan() || msg.delta.y.is_nan() {
+                    continue;
+                }
+                camera_t.translation.x -= msg.delta.x * projection.scale;
+                camera_t.translation.y += msg.delta.y * projection.scale;
             }
-            camera_t.translation.x -= msg.delta.x * projection.scale;
-            camera_t.translation.y += msg.delta.y * projection.scale;
+        } else {
+            commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Default));
         }
-    } else {
-        commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Default));
     }
 
     let mut position = camera_t.translation.truncate();
@@ -86,7 +92,7 @@ pub fn move_camera(
     let view_size = projection.area.max - projection.area.min;
 
     // Clamp camera position within bounds
-    if let Some((size, grid)) = map.iter().next() {
+    if let Some((size, grid)) = map_q.iter().next() {
         let width = size.x as f32 * grid.x;
         let height = size.y as f32 * grid.y;
 

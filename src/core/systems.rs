@@ -1,9 +1,11 @@
-use bevy::prelude::*;
-use bevy::window::WindowResized;
-
+use crate::core::constants::{MAX_GAME_SPEED, MIN_GAME_SPEED};
+use crate::core::menu::systems::StartNewGameMsg;
 use crate::core::menu::utils::TextSize;
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, GameState};
+use bevy::prelude::*;
+use bevy::window::WindowResized;
+use bevy_renet::renet::RenetServer;
 
 pub fn on_resize_system(
     mut resize_reader: MessageReader<WindowResized>,
@@ -19,6 +21,8 @@ pub fn on_resize_system(
 pub fn check_keys_menu(
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
+    server: Option<Res<RenetServer>>,
+    mut start_new_game_msg: MessageWriter<StartNewGameMsg>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -40,6 +44,21 @@ pub fn check_keys_menu(
             _ => (),
         }
     }
+
+    if keyboard.just_pressed(KeyCode::Enter) {
+        match app_state.get() {
+            AppState::MainMenu => next_app_state.set(AppState::SinglePlayerMenu),
+            AppState::SinglePlayerMenu => {
+                start_new_game_msg.write(StartNewGameMsg);
+            },
+            AppState::MultiPlayerMenu => next_app_state.set(AppState::Lobby),
+            AppState::ConnectedLobby if server.is_some() => {
+                start_new_game_msg.write(StartNewGameMsg);
+            },
+            AppState::Settings => next_app_state.set(AppState::MainMenu),
+            _ => (),
+        }
+    }
 }
 
 pub fn check_keys_game(
@@ -56,9 +75,9 @@ pub fn check_keys_game(
                 _ => unreachable!(),
             }
         } else if keyboard.just_released(KeyCode::ArrowRight) {
-            settings.speed = (settings.speed * 2.).min(64.0);
+            settings.speed = (settings.speed * 2.).min(MAX_GAME_SPEED);
         } else if keyboard.just_released(KeyCode::ArrowLeft) {
-            settings.speed = (settings.speed * 0.5).max(0.25);
+            settings.speed = (settings.speed * 0.5).max(MIN_GAME_SPEED);
         }
     }
 }

@@ -25,3 +25,5 @@ pub const UNITS_Z: f32 = 2.;
 
 /// Game settings
 pub const MAX_QUEUE_LENGTH: usize = 12;
+pub const MIN_GAME_SPEED: f32 = 0.25;
+pub const MAX_GAME_SPEED: f32 = 16.;

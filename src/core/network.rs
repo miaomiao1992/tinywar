@@ -196,7 +196,6 @@ pub fn client_send_message(
 }
 
 pub fn client_receive_message(
-    mut commands: Commands,
     mut n_players_q: Query<&mut Text, With<LobbyTextCmp>>,
     mut client: ResMut<RenetClient>,
     mut settings: ResMut<Settings>,

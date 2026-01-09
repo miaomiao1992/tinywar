@@ -7,7 +7,8 @@ use crate::core::units::units::UnitName;
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use bevy_renet::renet::ClientId;
-use rand::prelude::IteratorRandom;
+use rand::distr::weighted::WeightedIndex;
+use rand::distr::Distribution;
 use rand::rng;
 use strum::IntoEnumIterator;
 
@@ -48,9 +49,6 @@ pub fn queue_message(
 
         if player.queue.len() < MAX_QUEUE_LENGTH {
             player.queue.push_back(QueuedUnit::new(msg.unit, msg.unit.spawn_duration()));
-            if player.is_human() {
-                play_audio_msg.write(PlayAudioMsg::new("button"));
-            }
         } else if player.is_human() {
             play_audio_msg.write(PlayAudioMsg::new("error"));
         }
@@ -66,7 +64,7 @@ pub fn queue_resolve(
 ) {
     for player in players.iter_mut() {
         let mut spawn = None;
-        if let Some(queue) = player.queue.back_mut() {
+        if let Some(queue) = player.queue.front_mut() {
             queue.timer.tick(scale_duration(time.delta(), settings.speed));
 
             if queue.timer.just_finished() {
@@ -75,13 +73,23 @@ pub fn queue_resolve(
         } else if player.is_human() {
             queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default));
         } else {
-            queue_unit_msg
-                .write(QueueUnitMsg::new(player.id, UnitName::iter().choose(&mut rng()).unwrap()));
+            // Spawn units randomly with inverse probability to their spawning time
+            let units: Vec<UnitName> = UnitName::iter().collect();
+
+            let weights: Vec<f64> = units
+                .iter()
+                .map(|u| 1.0 / u.spawn_duration() as f64)
+                .collect();
+
+            let dist = WeightedIndex::new(&weights).unwrap();
+            let unit = units[dist.sample(&mut rng())];
+
+            queue_unit_msg.write(QueueUnitMsg::new(player.id, unit));
         }
 
         if let Some(unit) = spawn {
             spawn_unit_msg.write(SpawnUnitMsg::new(player.id, unit));
-            player.queue.pop_back();
+            player.queue.pop_front();
             player.queue_default = unit;
         }
     }

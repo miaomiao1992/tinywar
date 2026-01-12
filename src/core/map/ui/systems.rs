@@ -23,6 +23,9 @@ pub struct UiCmp;
 pub struct AdvanceBannerCmp(pub bool);
 
 #[derive(Component)]
+pub struct TextAdvanceBannerCmp;
+
+#[derive(Component)]
 pub struct ShopButtonCmp(pub UnitName);
 
 #[derive(Component)]
@@ -67,11 +70,21 @@ pub fn draw_ui(
             MapCmp,
         ))
         .with_children(|parent| {
-            let mut spawn = |index, width, component| {
+            let mut spawn = |index: usize, width: Val, component: Option<bool>| {
                 let mut p = parent.spawn((
                     Node {
-                        height: Val::Percent(100.),
                         width,
+                        height: Val::Percent(100.),
+                        align_items: AlignItems::Center,
+                        justify_content: component
+                            .map(|c| {
+                                if c {
+                                    JustifyContent::Start
+                                } else {
+                                    JustifyContent::End
+                                }
+                            })
+                            .unwrap_or_default(),
                         ..default()
                     },
                     ImageNode::from_atlas_image(
@@ -88,15 +101,11 @@ pub fn draw_ui(
                         AdvanceBannerCmp(me),
                         children![(
                             Node {
-                                justify_content: JustifyContent::End,
-                                align_items: if me {
-                                    AlignItems::Start
-                                } else {
-                                    AlignItems::End
-                                },
+                                position_type: PositionType::Absolute,
                                 ..default()
                             },
                             add_text("0%", "bold", 20., &assets, &window),
+                            TextAdvanceBannerCmp,
                         )],
                     ));
                 }
@@ -116,26 +125,61 @@ pub fn draw_ui(
         });
 
     // Draw units
+    let texture = assets.texture("small ribbons");
     commands
         .spawn((
             Node {
-                top: Val::Percent(15.),
+                top: Val::Percent(12.),
                 left: Val::Percent(2.),
-                height: Val::Percent(90.),
+                width: Val::Percent(7.),
+                height: Val::Percent(70.),
                 position_type: PositionType::Absolute,
                 flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Start,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             UiCmp,
             MapCmp,
         ))
         .with_children(|parent| {
-            for unit in UnitName::iter() {
-                parent
-                    .spawn((
-                        Node {
-                            height: Val::Percent(12.),
+            let mut spawn = |idx| {
+                parent.spawn((
+                    Node {
+                        width: Val::Percent(100.),
+                        aspect_ratio: Some(1.0),
+                        ..default()
+                    },
+                    ImageNode::from_atlas_image(
+                        texture.image.clone(),
+                        TextureAtlas {
+                            layout: texture.layout.clone(),
+                            index: idx + players.me.color.index() * 10,
+                        },
+                    ),
+                    UiTransform::from_rotation(Rot2::degrees(90.)),
+                ));
+            };
+
+            // Spawn banner
+            for idx in [0, 2, 2, 2, 9] {
+                spawn(idx);
+            }
+
+            parent
+                .spawn(Node {
+                    width: Val::Percent(80.),
+                    height: Val::Percent(70.),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    position_type: PositionType::Absolute,
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                })
+                .with_children(|parent| {
+                    for unit in UnitName::iter() {
+                        parent.spawn((Node {
+                            width: Val::Percent(100.),
                             aspect_ratio: Some(1.),
                             ..default()
                         },
@@ -188,7 +232,8 @@ pub fn draw_ui(
                             }
                         },
                     );
-            }
+                    }
+                });
         });
 
     // Draw queue
@@ -319,8 +364,9 @@ pub fn draw_ui(
 
 pub fn update_ui(
     unit_q: Query<(&Transform, &Unit)>,
-    mut advance_q: Query<(&mut Node, &AdvanceBannerCmp)>,
-    mut label_q: Query<(&mut Text, &ShopLabelCmp)>,
+    mut advance_q: Query<(Entity, &mut Node, &AdvanceBannerCmp)>,
+    mut text_q: Query<&mut Text, With<TextAdvanceBannerCmp>>,
+    mut label_q: Query<(&mut Text, &ShopLabelCmp), Without<TextAdvanceBannerCmp>>,
     mut queue_q: Query<(&mut Node, &mut SwordQueueCmp), Without<AdvanceBannerCmp>>,
     mut images_q: Query<(Entity, &mut ImageNode, &QueueButtonCmp)>,
     mut progress_wrapper_q: Query<(Entity, &mut Visibility), With<QueueProgressWrapperCmp>>,
@@ -329,14 +375,17 @@ pub fn update_ui(
         (With<QueueProgressCmp>, Without<SwordQueueCmp>, Without<AdvanceBannerCmp>),
     >,
     mut anim_q: Query<&mut TweenAnim>,
-    mut speed_q: Single<&mut Text, (With<SpeedCmp>, Without<ShopLabelCmp>)>,
+    mut speed_q: Single<
+        &mut Text,
+        (With<SpeedCmp>, Without<ShopLabelCmp>, Without<TextAdvanceBannerCmp>),
+    >,
     children_q: Query<&Children>,
     settings: Res<Settings>,
     players: Res<Players>,
     game_state: Res<State<GameState>>,
     assets: Local<WorldAssets>,
 ) {
-    // Update the shop labels
+    // Update the advance banner and shop labels
     let (mut me, mut enemy) = (0., 0.);
     let mut counts = HashMap::new();
     for (unit_t, unit) in unit_q.iter() {
@@ -351,21 +400,30 @@ pub fn update_ui(
     let frac = if me > 0. || enemy > 0. {
         me.min(enemy) / me.max(enemy)
     } else {
-        1. // No units on the board (start of game)
+        1.0
     };
-    for (mut node, banner) in &mut advance_q {
-        if banner.0 {
-            node.width = if me > enemy {
-                Val::Percent(45. * (1. + frac))
-            } else {
-                Val::Percent(45. * frac)
-            };
+
+    let (frac_me, frac_enemy) = if me > enemy {
+        (1. + frac, frac / 45.)
+    } else {
+        (frac, frac)
+    };
+
+    for (entity, mut node, banner) in &mut advance_q {
+        let n = if banner.0 {
+            frac_me
         } else {
-            node.width = if me > enemy {
-                Val::Percent(frac)
-            } else {
-                Val::Percent(45. * frac)
-            };
+            frac_enemy
+        };
+
+        node.width = Val::Percent(45. * n);
+
+        if let Ok(children) = children_q.get(entity) {
+            for &child in children {
+                if let Ok(mut text) = text_q.get_mut(child) {
+                    text.0 = format!("{:.0}%", 50. * n);
+                }
+            }
         }
     }
 

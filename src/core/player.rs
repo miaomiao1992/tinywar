@@ -6,6 +6,17 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::time::Duration;
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub enum PlayerDirection {
+    #[default]
+    Any,
+    Top,
+    TopMid,
+    Mid,
+    MidBot,
+    Bot,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct QueuedUnit {
     pub unit: UnitName,
@@ -25,6 +36,7 @@ impl QueuedUnit {
 pub struct Player {
     pub id: ClientId,
     pub color: PlayerColor,
+    pub direction: PlayerDirection,
     pub queue: VecDeque<QueuedUnit>,
     pub queue_default: UnitName,
 }
@@ -34,6 +46,7 @@ impl Player {
         Self {
             id,
             color,
+            direction: PlayerDirection::default(),
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
         }

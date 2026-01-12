@@ -28,6 +28,6 @@ pub enum GameState {
 pub enum AudioState {
     Mute,
     #[default]
-    NoMusic,
     Sound,
+    Music,
 }

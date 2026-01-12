@@ -25,22 +25,6 @@ pub fn scale_duration(duration: Duration, scale: f32) -> Duration {
     Duration::new(sec.trunc() as u64, (sec.fract() * 1e9) as u32)
 }
 
-/// Add dots to thousands
-pub fn format_thousands(n: usize) -> String {
-    let s = n.to_string();
-    let chars: Vec<char> = s.chars().rev().collect();
-    let mut result = Vec::new();
-
-    for (i, c) in chars.iter().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push('.');
-        }
-        result.push(*c);
-    }
-
-    result.iter().rev().collect()
-}
-
 /// Helper function to extract only the variant name (removes tuple/struct fields)
 fn extract_variant_name(text: String) -> String {
     text.split_once('(')
@@ -92,22 +76,6 @@ impl SafeDiv for f32 {
             0.0
         } else {
             self / b
-        }
-    }
-}
-
-/// Trait to convert a large number to a nice formatted string
-pub trait FmtNumb {
-    fn fmt(self) -> String;
-}
-
-impl FmtNumb for usize {
-    fn fmt(self) -> String {
-        match self {
-            n if n > 1_000_000 => format!("{:.2}M", self as f32 / 1_000_000.),
-            n if n > 100_000 => format!("{:.0}k", self as f32 / 100_000.),
-            n if n >= 1_000 => format!("{:.1}k", self as f32 / 1_000.),
-            _ => self.to_string(),
         }
     }
 }

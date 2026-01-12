@@ -80,8 +80,8 @@ pub fn setup_audio(mut commands: Commands, assets: Local<WorldAssets>) {
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                width: Val::Percent(3.),
-                height: Val::Percent(3.),
+                width: Val::Percent(5.),
+                height: Val::Percent(5.),
                 right: Val::Percent(0.),
                 top: Val::Percent(2.),
                 ..default()
@@ -89,7 +89,7 @@ pub fn setup_audio(mut commands: Commands, assets: Local<WorldAssets>) {
             ZIndex(5),
         ))
         .with_children(|parent| {
-            parent.spawn((ImageNode::new(assets.image("no-music")), MusicBtnCmp)).observe(
+            parent.spawn((ImageNode::new(assets.image("sound")), MusicBtnCmp)).observe(
                 |_: On<Pointer<Click>>, mut commands: Commands| {
                     commands.queue(|w: &mut World| {
                         w.write_message(ChangeAudioMsg(None));
@@ -114,9 +114,9 @@ pub fn update_audio(
 ) {
     for msg in change_audio_msg.read() {
         settings.audio = msg.0.unwrap_or(match *audio_state.get() {
-            AudioState::Mute => AudioState::NoMusic,
-            AudioState::NoMusic => AudioState::Sound,
-            AudioState::Sound => AudioState::Mute,
+            AudioState::Mute => AudioState::Sound,
+            AudioState::Sound => AudioState::Music,
+            AudioState::Music => AudioState::Mute,
         });
 
         if let Ok(mut node) = btn_q.single_mut() {
@@ -126,25 +126,25 @@ pub fn update_audio(
                     next_audio_state.set(AudioState::Mute);
                     assets.image("mute")
                 },
-                AudioState::NoMusic => {
+                AudioState::Sound => {
                     pause_audio_msg.write(PauseAudioMsg::new("music"));
                     stop_audio_msg.write(StopAudioMsg::new("drums"));
-                    next_audio_state.set(AudioState::NoMusic);
-                    assets.image("no-music")
-                },
-                AudioState::Sound => {
-                    play_audio_msg.write(PlayAudioMsg::new("music").background());
                     next_audio_state.set(AudioState::Sound);
                     assets.image("sound")
+                },
+                AudioState::Music => {
+                    play_audio_msg.write(PlayAudioMsg::new("music").background());
+                    next_audio_state.set(AudioState::Music);
+                    assets.image("music")
                 },
             };
         }
 
         for (mut bgcolor, setting) in &mut settings_btn {
-            if matches!(setting, SettingsBtn::Mute | SettingsBtn::NoMusic | SettingsBtn::Sound) {
+            if matches!(setting, SettingsBtn::Mute | SettingsBtn::Sound | SettingsBtn::Music) {
                 bgcolor.0 = if (*setting == SettingsBtn::Mute && settings.audio == AudioState::Mute)
-                    || (*setting == SettingsBtn::NoMusic && settings.audio == AudioState::NoMusic)
                     || (*setting == SettingsBtn::Sound && settings.audio == AudioState::Sound)
+                    || (*setting == SettingsBtn::Music && settings.audio == AudioState::Music)
                 {
                     PRESSED_BUTTON_COLOR
                 } else {
@@ -186,7 +186,7 @@ pub fn play_audio(
                         instance.state(),
                         PlaybackState::Paused { .. } | PlaybackState::Pausing { .. }
                     ) {
-                        if !msg.is_background || *audio_state.get() != AudioState::NoMusic {
+                        if !msg.is_background || *audio_state.get() != AudioState::Sound {
                             instance.resume(PlayingAudio::TWEEN);
                         }
                     } else if !msg.is_background
@@ -201,7 +201,7 @@ pub fn play_audio(
                     }
                 }
             } else if msg.is_background {
-                if *audio_state.get() != AudioState::NoMusic {
+                if *audio_state.get() != AudioState::Sound {
                     playing_audio.0.insert(
                         msg.name,
                         audio

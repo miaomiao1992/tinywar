@@ -80,8 +80,8 @@ impl FromWorld for WorldAssets {
         let mut images: HashMap<&'static str, Handle<Image>> = HashMap::from([
             // Icons
             ("mute", assets.load("images/icons/mute.png")),
-            ("no-music", assets.load("images/icons/no-music.png")),
             ("sound", assets.load("images/icons/sound.png")),
+            ("music", assets.load("images/icons/music.png")),
             // Background
             ("bg", assets.load("images/bg/bg.png")),
             // Ui
@@ -147,6 +147,7 @@ impl FromWorld for WorldAssets {
 
         let mut texture = world.get_resource_mut::<Assets<TextureAtlasLayout>>().unwrap();
         let swords1 = TextureAtlasLayout::from_grid(UVec2::new(105, 128), 1, 5, None, None);
+        let small_ribbons = TextureAtlasLayout::from_grid(UVec2::new(64, 64), 5, 10, None, None);
         let large_ribbons = TextureAtlasLayout::from_grid(UVec2::new(64, 128), 7, 5, None, None);
 
         let textures = HashMap::from([
@@ -155,6 +156,13 @@ impl FromWorld for WorldAssets {
                 TextureInfo {
                     image: images["swords1"].clone(),
                     layout: texture.add(swords1),
+                },
+            ),
+            (
+                "small ribbons",
+                TextureInfo {
+                    image: images["small ribbons"].clone(),
+                    layout: texture.add(small_ribbons),
                 },
             ),
             (

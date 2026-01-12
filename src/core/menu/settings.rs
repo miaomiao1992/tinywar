@@ -22,8 +22,8 @@ pub enum SettingsBtn {
     Medium,
     Large,
     Mute,
-    NoMusic,
     Sound,
+    Music,
     True,
     False,
 }
@@ -39,8 +39,8 @@ fn match_setting(button: &SettingsBtn, settings: &Settings) -> bool {
         SettingsBtn::Medium => settings.map_size == MapSize::Medium,
         SettingsBtn::Large => settings.map_size == MapSize::Large,
         SettingsBtn::Mute => settings.audio == AudioState::Mute,
-        SettingsBtn::NoMusic => settings.audio == AudioState::NoMusic,
         SettingsBtn::Sound => settings.audio == AudioState::Sound,
+        SettingsBtn::Music => settings.audio == AudioState::Music,
         SettingsBtn::True => settings.autosave == true,
         SettingsBtn::False => settings.autosave == false,
     }
@@ -78,13 +78,13 @@ pub fn on_click_label_button(
             settings.audio = AudioState::Mute;
             change_audio_msg.write(ChangeAudioMsg(Some(AudioState::Mute)));
         },
-        SettingsBtn::NoMusic => {
-            settings.audio = AudioState::NoMusic;
-            change_audio_msg.write(ChangeAudioMsg(Some(AudioState::NoMusic)));
-        },
         SettingsBtn::Sound => {
             settings.audio = AudioState::Sound;
             change_audio_msg.write(ChangeAudioMsg(Some(AudioState::Sound)));
+        },
+        SettingsBtn::Music => {
+            settings.audio = AudioState::Music;
+            change_audio_msg.write(ChangeAudioMsg(Some(AudioState::Music)));
         },
         SettingsBtn::True => settings.autosave = true,
         SettingsBtn::False => settings.autosave = false,

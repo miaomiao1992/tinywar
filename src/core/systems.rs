@@ -1,11 +1,16 @@
+use crate::core::audio::PlayAudioMsg;
 use crate::core::constants::{MAX_GAME_SPEED, MIN_GAME_SPEED};
+use crate::core::mechanics::queue::QueueUnitMsg;
 use crate::core::menu::systems::StartNewGameMsg;
 use crate::core::menu::utils::TextSize;
+use crate::core::player::{PlayerDirection, Players};
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, GameState};
+use crate::core::units::units::UnitName;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 use bevy_renet::renet::RenetServer;
+use strum::IntoEnumIterator;
 
 pub fn on_resize_system(
     mut resize_reader: MessageReader<WindowResized>,
@@ -27,7 +32,7 @@ pub fn check_keys_menu(
     mut next_app_state: ResMut<NextState<AppState>>,
     keyboard: Res<ButtonInput<KeyCode>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if keyboard.just_released(KeyCode::Escape) {
         match app_state.get() {
             AppState::SinglePlayerMenu | AppState::MultiPlayerMenu | AppState::Settings => {
                 next_app_state.set(AppState::MainMenu)
@@ -45,7 +50,7 @@ pub fn check_keys_menu(
         }
     }
 
-    if keyboard.just_pressed(KeyCode::Enter) {
+    if keyboard.just_released(KeyCode::Enter) {
         match app_state.get() {
             AppState::MainMenu => next_app_state.set(AppState::SinglePlayerMenu),
             AppState::SinglePlayerMenu => {
@@ -63,12 +68,12 @@ pub fn check_keys_menu(
 
 pub fn check_keys_game(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut settings: ResMut<Settings>,
     game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
-    mut settings: ResMut<Settings>,
 ) {
     if matches!(game_state.get(), GameState::Playing | GameState::Paused) {
-        if keyboard.just_pressed(KeyCode::Space) {
+        if keyboard.just_released(KeyCode::Space) {
             match game_state.get() {
                 GameState::Playing => next_game_state.set(GameState::Paused),
                 GameState::Paused => next_game_state.set(GameState::Playing),
@@ -78,6 +83,32 @@ pub fn check_keys_game(
             settings.speed = (settings.speed * 2.).min(MAX_GAME_SPEED);
         } else if keyboard.just_released(KeyCode::ArrowLeft) {
             settings.speed = (settings.speed * 0.5).max(MIN_GAME_SPEED);
+        }
+    }
+}
+
+pub fn check_keys_playing_game(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut players: ResMut<Players>,
+    mut queue_unit_msg: MessageWriter<QueueUnitMsg>,
+    mut play_audio_msg: MessageWriter<PlayAudioMsg>,
+) {
+    // Change unit direction
+    if keyboard.just_released(KeyCode::ArrowLeft) {
+        players.me.direction = PlayerDirection::Any;
+    } else if keyboard.just_released(KeyCode::ArrowRight) {
+        players.me.direction = PlayerDirection::Mid;
+    } else if keyboard.just_released(KeyCode::ArrowUp) {
+        players.me.direction = PlayerDirection::Top;
+    } else if keyboard.just_released(KeyCode::ArrowDown) {
+        players.me.direction = PlayerDirection::Bot;
+    }
+
+    // Spawn units
+    for unit in UnitName::iter() {
+        if keyboard.just_released(unit.key()) {
+            queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit));
+            play_audio_msg.write(PlayAudioMsg::new("button"));
         }
     }
 }

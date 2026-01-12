@@ -29,7 +29,7 @@ use crate::core::persistence::{load_game, save_game};
 use crate::core::persistence::{LoadGameMsg, SaveGameMsg};
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, AudioState, GameState};
-use crate::core::systems::{check_keys_game, check_keys_menu, on_resize_system};
+use crate::core::systems::{check_keys_game, check_keys_menu, check_keys_playing_game, on_resize_system};
 use crate::core::units::systems::update_units;
 use crate::core::utils::despawn;
 use bevy::prelude::*;
@@ -102,7 +102,7 @@ impl Plugin for GamePlugin {
         app
             // Camera
             .add_systems(Startup, setup_camera)
-            .add_systems(Update, (move_camera, move_camera_keyboard).in_set(InPlayingOrPausedSet))
+            .add_systems(Update, (move_camera, move_camera_keys).in_set(InPlayingOrPausedSet))
             // Audio
             .add_systems(Startup, setup_audio)
             .add_systems(OnEnter(GameState::Playing), play_music)
@@ -137,12 +137,19 @@ impl Plugin for GamePlugin {
 
         app
             // Utilities
-            .add_systems(Update, (check_keys_menu, check_keys_game.in_set(InGameSet)))
+            .add_systems(
+                Update,
+                (
+                    check_keys_menu,
+                    check_keys_game.in_set(InGameSet),
+                    check_keys_playing_game.in_set(InPlayingOrPausedSet),
+                ),
+            )
             .add_systems(PostUpdate, on_resize_system)
             // In-game states
             .add_systems(OnEnter(AppState::Game), (draw_map, draw_ui))
             .add_systems(Update, update_ui.in_set(InGameSet))
-            .add_systems(Update, (queue_keyboard, queue_message).in_set(InPlayingOrPausedSet))
+            .add_systems(Update, queue_message.in_set(InPlayingOrPausedSet))
             .add_systems(
                 Update,
                 (queue_resolve, spawn_unit_message, spawn_building_message, update_units)

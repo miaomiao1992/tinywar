@@ -108,6 +108,7 @@ pub fn spawn_unit_message(
                     image: texture.image,
                     texture_atlas: Some(texture.atlas),
                     custom_size: Some(Vec2::splat(msg.unit.size())),
+                    flip_x: players.me.color != player.color,
                     ..default()
                 },
                 Transform {

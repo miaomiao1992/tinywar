@@ -109,7 +109,7 @@ pub fn move_camera(
     camera_t.translation = position.extend(camera_t.translation.z);
 }
 
-pub fn move_camera_keyboard(
+pub fn move_camera_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut camera_q: Query<(&mut Transform, &Projection), With<MainCamera>>,
 ) {

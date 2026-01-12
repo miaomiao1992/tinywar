@@ -161,8 +161,8 @@ pub fn setup_menu(
                                     "Audio",
                                     vec![
                                         SettingsBtn::Mute,
-                                        SettingsBtn::NoMusic,
                                         SettingsBtn::Sound,
+                                        SettingsBtn::Music,
                                     ],
                                     &settings,
                                     &assets,
@@ -311,7 +311,7 @@ pub fn setup_game_settings(
                 spawn_label(
                     parent,
                     "Audio",
-                    vec![SettingsBtn::Mute, SettingsBtn::NoMusic, SettingsBtn::Sound],
+                    vec![SettingsBtn::Mute, SettingsBtn::Sound, SettingsBtn::Music],
                     &settings,
                     &assets,
                     &window,

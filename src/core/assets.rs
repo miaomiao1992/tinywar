@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::core::settings::PlayerColor;
 use crate::core::units::buildings::BuildingName;
 use crate::core::units::units::{Action, UnitName};
@@ -7,6 +5,8 @@ use crate::utils::NameFromEnum;
 use bevy::asset::AssetServer;
 use bevy::prelude::*;
 use bevy_kira_audio::AudioSource;
+use std::collections::HashMap;
+use std::path::Path;
 use strum::IntoEnumIterator;
 
 #[derive(Clone)]
@@ -19,7 +19,6 @@ pub struct TextureInfo {
 pub struct AtlasInfo {
     pub image: Handle<Image>,
     pub atlas: TextureAtlas,
-    pub last_index: usize,
 }
 
 pub struct WorldAssets {
@@ -98,6 +97,7 @@ impl FromWorld for WorldAssets {
 
         let mut atlas: HashMap<&'static str, AtlasInfo> = HashMap::new();
 
+        let mut actions = vec![];
         for color in PlayerColor::iter() {
             for building in BuildingName::iter() {
                 let name =
@@ -128,23 +128,26 @@ impl FromWorld for WorldAssets {
                 );
 
                 for action in Action::iter() {
-                    let name = Box::leak(Box::new(format!(
-                        "{}-{}-{}",
+                    let path = format!(
+                        "assets/images/units/{}/{}_{}.png",
                         color.to_name(),
                         unit.to_name(),
                         action.to_name()
-                    )))
-                    .as_str();
+                    );
 
-                    images.insert(
-                        name,
-                        assets.load(format!(
-                            "images/units/{}/{}_{}.png",
+                    if Path::new(&path).exists() {
+                        let name = Box::leak(Box::new(format!(
+                            "{}-{}-{}",
                             color.to_name(),
                             unit.to_name(),
                             action.to_name()
-                        )),
-                    );
+                        )))
+                        .as_str();
+
+                        images.insert(name, assets.load(path.replace("assets/", "")));
+
+                        actions.push((name, action, unit));
+                    }
                 }
             }
         }
@@ -179,38 +182,25 @@ impl FromWorld for WorldAssets {
         ]);
 
         // Add atlas separately since it requires mutable access to world
-        for color in PlayerColor::iter() {
-            for unit in UnitName::iter() {
-                for action in Action::iter() {
-                    let name = Box::leak(Box::new(format!(
-                        "{}-{}-{}",
-                        color.to_name(),
-                        unit.to_name(),
-                        action.to_name()
-                    )))
-                    .as_str();
+        for (name, action, unit) in actions {
+            let layout = TextureAtlasLayout::from_grid(
+                UVec2::splat(unit.size() as u32),
+                unit.frames(action),
+                1,
+                None,
+                None,
+            );
 
-                    let layout = TextureAtlasLayout::from_grid(
-                        UVec2::splat(unit.size() as u32),
-                        unit.frames(action),
-                        1,
-                        None,
-                        None,
-                    );
-
-                    atlas.insert(
-                        name,
-                        AtlasInfo {
-                            image: images[name].clone(),
-                            atlas: TextureAtlas {
-                                layout: texture.add(layout),
-                                index: 0,
-                            },
-                            last_index: unit.frames(action) as usize - 1,
-                        },
-                    );
-                }
-            }
+            atlas.insert(
+                name,
+                AtlasInfo {
+                    image: images[name].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(layout),
+                        index: 0,
+                    },
+                },
+            );
         }
 
         Self {

@@ -97,11 +97,13 @@ pub fn draw_ui(
                             index,
                         },
                     ),
+                    ZIndex(1),
                 ));
 
                 if let Some(me) = component {
                     p.insert((
                         AdvanceBannerCmp(me),
+                        ZIndex(1),
                         children![(
                             Node {
                                 position_type: PositionType::Absolute,
@@ -109,6 +111,7 @@ pub fn draw_ui(
                             },
                             add_text("0%", "bold", 20., &assets, &window),
                             TextAdvanceBannerCmp,
+                            ZIndex(2),
                         )],
                     ));
                 }
@@ -217,7 +220,7 @@ pub fn draw_ui(
                         },
                         ImageNode::new(assets.image(format!(
                             "{}-{}",
-                            PlayerColor::Blue.to_name(),
+                            players.me.color.to_name(),
                             unit.to_name()
                         ))),
                         ShopButtonCmp(unit),
@@ -419,24 +422,27 @@ pub fn update_ui(
     assets: Local<WorldAssets>,
 ) {
     // Update the advance banner and shop labels
-    let (mut me, mut enemy) = (50., 50.); // Start
+    let (mut me, mut enemy) = (50., 50.); // Start with prior
     let mut counts = HashMap::new();
-    for (unit_t, unit) in unit_q.iter() {
-        let x = unit_t.translation.x;
+    for (t, unit) in unit_q.iter() {
+        let mut x = t.translation.x;
 
-        if unit.color == players.me.color {
-            me += match players.me.side {
-                Side::Left if x > 0. => x,
-                Side::Right if x < 0. => -x,
-                _ => 0.,
-            };
-            *counts.entry(unit.name).or_insert(0) += 1;
+        let (side, acc, count) = if unit.color == players.me.color {
+            (&players.me.side, &mut me, Some(unit.name))
         } else {
-            enemy += match players.enemy.side {
-                Side::Left if x > 0. => x,
-                Side::Right if x < 0. => -x,
-                _ => 0.,
-            };
+            (&players.enemy.side, &mut enemy, None)
+        };
+
+        x = match side {
+            Side::Left if x > 0. => x,
+            Side::Right if x < 0. => -x,
+            _ => continue,
+        };
+
+        *acc += (1. / (1. + (-0.02 * x).exp()) - 0.5) * 2.;
+
+        if let Some(name) = count {
+            *counts.entry(name).or_insert(0) += 1;
         }
     }
 

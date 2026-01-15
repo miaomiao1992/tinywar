@@ -1,3 +1,4 @@
+use crate::core::constants::UNIT_DEFAULT_SIZE;
 use crate::core::map::map::Path;
 use crate::core::player::Player;
 use crate::core::settings::PlayerColor;
@@ -6,7 +7,6 @@ use rand::prelude::IndexedRandom;
 use rand::rng;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-use crate::core::constants::UNIT_DEFAULT_SIZE;
 
 #[derive(EnumIter, Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum UnitName {
@@ -49,18 +49,26 @@ impl UnitName {
             UnitName::Warrior => match action {
                 Action::Idle => 8,
                 Action::Run => 6,
+                Action::Attack => 8,
+                _ => unreachable!(),
             },
             UnitName::Lancer => match action {
                 Action::Idle => 12,
                 Action::Run => 6,
+                Action::Attack => 9,
+                _ => unreachable!(),
             },
             UnitName::Archer => match action {
                 Action::Idle => 6,
                 Action::Run => 4,
+                Action::Attack => 8,
+                _ => unreachable!(),
             },
             UnitName::Monk => match action {
                 Action::Idle => 6,
                 Action::Run => 4,
+                Action::Heal => 11,
+                _ => unreachable!(),
             },
         }
     }
@@ -82,6 +90,14 @@ impl UnitName {
             UnitName::Monk => 10.,
         }
     }
+
+    pub fn range(&self) -> f32 {
+        match self {
+            UnitName::Archer => 2.,
+            UnitName::Monk => 3.,
+            _ => 1.,
+        }
+    }
 }
 
 #[derive(EnumIter, Clone, Copy, Debug, Default, Serialize, Deserialize)]
@@ -89,6 +105,8 @@ pub enum Action {
     #[default]
     Idle,
     Run,
+    Attack,
+    Heal,
 }
 
 #[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]

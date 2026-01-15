@@ -32,5 +32,6 @@ pub const CAPPED_DELTA_SECS_SPEED: f32 = 0.05;
 
 /// Units
 pub const UNIT_DEFAULT_SIZE: f32 = 192.;
+pub const BUILDING_SCALE: f32 = 0.7;
 pub const UNIT_SCALE: f32 = 0.5;
 pub const HEALTH_BAR_SIZE: Vec2 = Vec2::new(76.8, 15.4);

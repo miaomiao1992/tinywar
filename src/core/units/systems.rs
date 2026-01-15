@@ -27,11 +27,12 @@ pub fn update_units(
 
         if unit_s.image != atlas.image {
             unit_s.image = atlas.image;
+            unit_s.texture_atlas = Some(atlas.atlas);
             commands.entity(unit_e).insert(TweenAnim::new(
                 Tween::new(
                     EaseFunction::Linear,
                     Duration::from_millis(FRAME_RATE * unit.name.frames(unit.action) as u64),
-                    SpriteFrameLens(atlas.last_index),
+                    SpriteFrameLens(unit.name.frames(unit.action) as usize),
                 )
                 .with_repeat_count(RepeatCount::Infinite),
             ));

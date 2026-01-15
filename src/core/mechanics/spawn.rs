@@ -1,5 +1,7 @@
 use crate::core::assets::WorldAssets;
-use crate::core::constants::{BUILDINGS_Z, FRAME_RATE, HEALTH_BAR_SIZE, UNITS_Z, UNIT_SCALE};
+use crate::core::constants::{
+    BUILDINGS_Z, BUILDING_SCALE, FRAME_RATE, HEALTH_BAR_SIZE, UNITS_Z, UNIT_SCALE,
+};
 use crate::core::map::systems::MapCmp;
 use crate::core::map::utils::SpriteFrameLens;
 use crate::core::player::Players;
@@ -72,7 +74,7 @@ pub fn spawn_building_message(
             ))),
             Transform {
                 translation: msg.position.extend(BUILDINGS_Z),
-                scale: Vec3::splat(UNIT_SCALE),
+                scale: Vec3::splat(BUILDING_SCALE),
                 ..default()
             },
             Building::new(msg.building, player.color, msg.is_base),
@@ -124,7 +126,7 @@ pub fn spawn_unit_message(
                     Tween::new(
                         EaseFunction::Linear,
                         Duration::from_millis(FRAME_RATE * msg.unit.frames(action) as u64),
-                        SpriteFrameLens(atlas.last_index),
+                        SpriteFrameLens(msg.unit.frames(action) as usize),
                     )
                     .with_repeat_count(RepeatCount::Infinite),
                 ),

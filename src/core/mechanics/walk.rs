@@ -2,7 +2,7 @@ use crate::core::constants::{CAPPED_DELTA_SECS_SPEED, UNIT_DEFAULT_SIZE, UNIT_SC
 use crate::core::map::map::Map;
 use crate::core::player::Players;
 use crate::core::settings::Settings;
-use crate::core::units::units::{Action, Unit};
+use crate::core::units::units::{Action, Unit, UnitName};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::TilePos;
 use std::collections::HashMap;
@@ -27,10 +27,11 @@ fn closest_tile_on_path<'a>(current_tile: &TilePos, path: &'a Vec<TilePos>) -> &
 }
 
 pub fn run(
+    unit_e: Entity,
     unit: &mut Unit,
     unit_t: &mut Transform,
     unit_s: &mut Sprite,
-    positions: &HashMap<TilePos, Vec<(Vec3, Unit)>>,
+    positions: &HashMap<TilePos, Vec<(Entity, Vec3, Unit)>>,
     settings: &Settings,
     map: &Map,
     players: &Players,
@@ -53,28 +54,45 @@ pub fn run(
 
     // Calculate the vector to the next location
     let target_pos = Map::tile_to_world(&target_tile).extend(unit_t.translation.z);
-    let mut direction = target_pos - unit_t.translation;
 
-    // Flip on direction before avoidance to avoid rapid, intermittent flipping
-    unit_s.flip_x = direction.x < 0.;
+    let direction = target_pos - unit_t.translation;
 
-    // Check units in this tile + adjacent tiles and apply avoidance factor to the direction
-    let mut avoidance = Vec3::ZERO;
+    let radius = UNIT_DEFAULT_SIZE * 0.5 * UNIT_SCALE;
+
+    // Check units in this tile + adjacent tiles
     for tile in std::iter::once(tile).chain(Map::get_neighbors(&tile)) {
         if let Some(units) = positions.get(&tile) {
-            for (other_pos, _) in units {
+            for (other_e, other_pos, other_unit) in units {
+                if unit_e == *other_e {
+                    continue; // Skip self
+                }
+
                 let delta = unit_t.translation - other_pos;
                 let dist = delta.length();
-                let radius = UNIT_DEFAULT_SIZE * 0.5 * UNIT_SCALE;
-                if dist > 0. && dist < radius {
-                    avoidance += delta.normalize() * (radius - dist);
+
+                let range = unit.name.range() * radius;
+                if unit.color != other_unit.color {
+                    // Resolve if encountered enemy
+                    if dist < range {
+                        unit.action = if unit.name != UnitName::Monk {
+                            Action::Attack
+                        } else {
+                            Action::Idle // Monk's can't attack
+                        };
+                        return;
+                    }
+                } else {
+                    // Resolve if encountered ally
+                    if unit.name == UnitName::Monk
+                        && dist < range
+                        && other_unit.health < other_unit.name.health()
+                    {
+                        unit.action = Action::Heal;
+                        return;
+                    }
                 }
             }
         }
-    }
-
-    if avoidance != Vec3::ZERO {
-        direction += 3. * avoidance;
     }
 
     let mut next_pos = unit_t.translation
@@ -86,12 +104,15 @@ pub fn run(
 
     if tile == next_tile || Map::is_walkable(&next_tile) {
         // Check if the tile below is walkable. If not, restrict movement to the top part
-        if !Map::is_walkable(&TilePos::new(next_tile.x, next_tile.y - 1)) {
-            let bottom_limit = Map::tile_to_world(&next_tile).y - Map::TILE_SIZE as f32 * 0.5; fix!!
+        if !Map::is_walkable(&TilePos::new(next_tile.x, next_tile.y + 1)) {
+            let bottom_limit = Map::tile_to_world(&next_tile).y - Map::TILE_SIZE as f32 * 0.25;
             if next_pos.y < bottom_limit {
                 next_pos.y = bottom_limit;
             }
         }
+
+        // Change the direction the unit is facing
+        unit_s.flip_x = next_pos.x < unit_t.translation.x;
 
         unit_t.translation = next_pos;
         unit.action = Action::Run;
@@ -107,15 +128,27 @@ pub fn move_units(
     players: Res<Players>,
     time: Res<Time>,
 ) {
-    // Build spatial hashmap: tile -> positions + radii
-    let positions: HashMap<TilePos, Vec<(Vec3, Unit)>> =
-        unit_q.iter().fold(HashMap::new(), |mut acc, (_, t, _, u)| {
+    // Build spatial hashmap: tile -> positions + unit
+    let positions: HashMap<TilePos, Vec<(Entity, Vec3, Unit)>> =
+        unit_q.iter().fold(HashMap::new(), |mut acc, (e, t, _, u)| {
             let tile = Map::world_to_tile(&t.translation);
-            acc.entry(tile).or_default().push((t.translation, u.clone()));
+            acc.entry(tile).or_default().push((e, t.translation, u.clone()));
             acc
         });
 
-    for (_, mut unit_t, mut unit_s, mut unit) in &mut unit_q {
-        run(&mut unit, &mut unit_t, &mut unit_s, &positions, &settings, &map, &players, &time);
+    for (unit_e, mut unit_t, mut unit_s, mut unit) in
+        unit_q.iter_mut().filter(|(_, _, _, u)| matches!(u.action, Action::Idle | Action::Run))
+    {
+        run(
+            unit_e,
+            &mut unit,
+            &mut unit_t,
+            &mut unit_s,
+            &positions,
+            &settings,
+            &map,
+            &players,
+            &time,
+        );
     }
 }

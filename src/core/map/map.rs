@@ -15,11 +15,11 @@ pub enum Path {
 
 impl Path {
     /// Y-position of the tile that is used as waypoint (middle) of the path to follow
-    pub fn waypoint(&self) -> u32 {
+    pub fn waypoint(&self) -> TilePos {
         match self {
-            Path::Top => 1,
-            Path::Mid => 6,
-            Path::Bot => 10,
+            Path::Top => TilePos::new(14, 2),
+            Path::Mid => TilePos::new(14, 6),
+            Path::Bot => TilePos::new(14, 10),
         }
     }
 }
@@ -37,12 +37,9 @@ impl Default for Map {
 
         let paths = Path::iter()
             .map(|path| {
-                // Pick an intermediate waypoint in this lane, roughly in the middle
-                let waypoint = TilePos::new((start.x + end.x) / 2, path.waypoint());
-
                 // Compute two segments: start → waypoint → end
-                let mut firs_segment = Self::find_path(&start, &waypoint);
-                let mut second_segment = Self::find_path(&waypoint, &end);
+                let mut firs_segment = Self::find_path(&start, &path.waypoint());
+                let mut second_segment = Self::find_path(&path.waypoint(), &end);
 
                 // Remove the waypoint (overlap) from second segment
                 second_segment.remove(0);
@@ -60,7 +57,7 @@ impl Default for Map {
 
 impl Map {
     pub const TILE_SIZE: u32 = 64;
-    pub const MAP_SIZE: UVec2 = UVec2::new(20, 12);
+    pub const MAP_SIZE: UVec2 = UVec2::new(30, 16);
 
     // Rect that the map occupies in world coordinates
     pub const MAP_VIEW: Rect = Rect {
@@ -73,21 +70,25 @@ impl Map {
             Self::MAP_SIZE.y as f32 * Self::TILE_SIZE as f32 * 0.5,
         ),
     };
-    pub const STARTING_POSITIONS: [TilePos; 2] = [TilePos::new(3, 5), TilePos::new(16, 5)];
+    pub const STARTING_POSITIONS: [TilePos; 2] = [TilePos::new(3, 0), TilePos::new(26, 0)];
 
-    const WALKABLE_BITS: [u32; 12] = [
-        0b00000000000000000000,
-        0b01111111111111111110,
-        0b01111100000000111110,
-        0b01111100000000111110,
-        0b01111100000000111110,
-        0b01111111111111111110,
-        0b01111111111111111110,
-        0b01111100000000111110,
-        0b01111100000000111110,
-        0b01111100000000111110,
-        0b01111111111111111110,
-        0b00000000000000000000,
+    const WALKABLE_BITS: [u32; 16] = [
+        0b001110000000000000000000011100,
+        0b001111111000011110000001111110,
+        0b001111111101111110000011111110,
+        0b001111111111000011000110111110,
+        0b001111100000111101111101011110,
+        0b000111111111111110000011111110,
+        0b000000111100111111111111110000,
+        0b000111111011011111111001111100,
+        0b000000001111100110000110111100,
+        0b000011111111111001111111111000,
+        0b000011111111111101111111000000,
+        0b000111100011001111111111100000,
+        0b000111100000000111111011100000,
+        0b000000000000000111110000000000,
+        0b000000000000000111100000000000,
+        0b000000000000000000000000000000,
     ];
 
     pub fn starting_positions() -> Vec<Vec2> {

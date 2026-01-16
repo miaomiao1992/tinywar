@@ -1,6 +1,6 @@
 use crate::core::settings::PlayerColor;
 use crate::core::units::buildings::BuildingName;
-use crate::core::units::units::{Action, UnitName};
+use crate::core::units::units::{ActionKind, UnitName};
 use crate::utils::NameFromEnum;
 use bevy::asset::AssetServer;
 use bevy::prelude::*;
@@ -19,6 +19,7 @@ pub struct TextureInfo {
 pub struct AtlasInfo {
     pub image: Handle<Image>,
     pub atlas: TextureAtlas,
+    pub last_index: usize,
 }
 
 pub struct WorldAssets {
@@ -93,6 +94,9 @@ impl FromWorld for WorldAssets {
             ("swords3", assets.load("images/ui/swords3.png")),
             ("small ribbons", assets.load("images/ui/small ribbons.png")),
             ("large ribbons", assets.load("images/ui/large ribbons.png")),
+            // Animations
+            ("arrow", assets.load("images/units/arrow.png")),
+            ("heal", assets.load("images/units/heal.png")),
         ]);
 
         let mut atlas: HashMap<&'static str, AtlasInfo> = HashMap::new();
@@ -127,7 +131,7 @@ impl FromWorld for WorldAssets {
                     )),
                 );
 
-                for action in Action::iter() {
+                for action in ActionKind::iter() {
                     let path = format!(
                         "assets/images/units/{}/{}_{}.png",
                         color.to_name(),
@@ -185,7 +189,7 @@ impl FromWorld for WorldAssets {
         for (name, action, unit) in actions {
             let layout = TextureAtlasLayout::from_grid(
                 UVec2::splat(unit.size() as u32),
-                unit.frames(action),
+                unit.frames(action.to_action()),
                 1,
                 None,
                 None,
@@ -199,9 +203,23 @@ impl FromWorld for WorldAssets {
                         layout: texture.add(layout),
                         index: 0,
                     },
+                    last_index: unit.frames(action.to_action()) as usize,
                 },
             );
         }
+
+        let heal = TextureAtlasLayout::from_grid(UVec2::splat(192), 11, 1, None, None);
+        atlas.extend([(
+            "heal",
+            AtlasInfo {
+                image: images["heal"].clone(),
+                atlas: TextureAtlas {
+                    layout: texture.add(heal),
+                    index: 0,
+                },
+                last_index: 11,
+            },
+        )]);
 
         Self {
             audio,

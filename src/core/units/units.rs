@@ -2,11 +2,11 @@ use crate::core::constants::UNIT_DEFAULT_SIZE;
 use crate::core::map::map::Path;
 use crate::core::player::Player;
 use crate::core::settings::PlayerColor;
-use bevy::prelude::{Component, KeyCode};
+use bevy::prelude::{Component, Entity, KeyCode};
 use rand::prelude::IndexedRandom;
 use rand::rng;
 use serde::{Deserialize, Serialize};
-use strum_macros::EnumIter;
+use strum_macros::{EnumDiscriminants, EnumIter};
 
 #[derive(EnumIter, Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum UnitName {
@@ -49,25 +49,25 @@ impl UnitName {
             UnitName::Warrior => match action {
                 Action::Idle => 8,
                 Action::Run => 6,
-                Action::Attack => 8,
+                Action::Attack(_) => 8,
                 _ => unreachable!(),
             },
             UnitName::Lancer => match action {
                 Action::Idle => 12,
                 Action::Run => 6,
-                Action::Attack => 9,
+                Action::Attack(_) => 9,
                 _ => unreachable!(),
             },
             UnitName::Archer => match action {
                 Action::Idle => 6,
                 Action::Run => 4,
-                Action::Attack => 8,
+                Action::Attack(_) => 8,
                 _ => unreachable!(),
             },
             UnitName::Monk => match action {
                 Action::Idle => 6,
                 Action::Run => 4,
-                Action::Heal => 11,
+                Action::Heal(_) => 11,
                 _ => unreachable!(),
             },
         }
@@ -98,15 +98,36 @@ impl UnitName {
             _ => 1.,
         }
     }
+
+    pub fn damage(&self) -> f32 {
+        match self {
+            UnitName::Warrior => 20.,
+            UnitName::Lancer => 15.,
+            UnitName::Archer => 10.,
+            UnitName::Monk => -10., // This is the healing done (negative damage)
+        }
+    }
 }
 
-#[derive(EnumIter, Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(EnumDiscriminants, Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[strum_discriminants(name(ActionKind), derive(EnumIter))]
 pub enum Action {
     #[default]
     Idle,
     Run,
-    Attack,
-    Heal,
+    Attack(Entity),
+    Heal(Entity),
+}
+
+impl ActionKind {
+    pub fn to_action(self) -> Action {
+        match self {
+            ActionKind::Idle => Action::Idle,
+            ActionKind::Run => Action::Run,
+            ActionKind::Attack => Action::Attack(Entity::PLACEHOLDER),
+            ActionKind::Heal => Action::Heal(Entity::PLACEHOLDER),
+        }
+    }
 }
 
 #[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]

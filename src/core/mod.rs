@@ -20,6 +20,7 @@ use crate::core::constants::WATER_COLOR;
 use crate::core::map::map::Map;
 use crate::core::map::systems::{draw_map, MapCmp};
 use crate::core::map::ui::systems::{draw_ui, update_ui};
+use crate::core::mechanics::combat::{apply_damage, move_arrows};
 use crate::core::mechanics::queue::*;
 use crate::core::mechanics::spawn::*;
 use crate::core::mechanics::walk::move_units;
@@ -82,6 +83,7 @@ impl Plugin for GamePlugin {
             .add_message::<QueueUnitMsg>()
             .add_message::<SpawnBuildingMsg>()
             .add_message::<SpawnUnitMsg>()
+            .add_message::<DespawnMsg>()
             // Resources
             .insert_resource(ClearColor(WATER_COLOR))
             .init_resource::<Ip>()
@@ -162,10 +164,11 @@ impl Plugin for GamePlugin {
                     spawn_unit_message,
                     spawn_building_message,
                     update_units,
-                    move_units,
+                    (move_units, move_arrows, apply_damage).run_if(resource_exists::<Host>),
                 )
                     .in_set(InPlayingSet),
             )
+            .add_systems(Last, despawn_message.in_set(InPlayingSet))
             .add_systems(
                 OnExit(AppState::Game),
                 (despawn::<MapCmp>, reset_camera, exit_multiplayer_lobby),

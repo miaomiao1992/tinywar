@@ -32,6 +32,11 @@ pub const CAPPED_DELTA_SECS_SPEED: f32 = 0.05;
 
 /// Units
 pub const UNIT_DEFAULT_SIZE: f32 = 192.;
+pub const RADIUS: f32 = UNIT_DEFAULT_SIZE * UNIT_SCALE * 0.5;
 pub const BUILDING_SCALE: f32 = 0.7;
 pub const UNIT_SCALE: f32 = 0.5;
-pub const HEALTH_BAR_SIZE: Vec2 = Vec2::new(76.8, 15.4);
+pub const HEALTH_SIZE: Vec2 = Vec2::new(75., 15.);
+pub const INNER_HEALTH_SIZE: Vec2 = Vec2::new(HEALTH_SIZE.x * 0.92, HEALTH_SIZE.y * 0.75);
+pub const ARROW_SPEED: f32 = 40.;
+pub const ARROW_MAX_DISTANCE: f32 = 400.;
+pub const ARROW_ARC_HEIGHT: f32 = 100.;

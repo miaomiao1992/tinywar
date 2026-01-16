@@ -439,7 +439,7 @@ pub fn update_ui(
             _ => continue,
         };
 
-        *acc += (1. / (1. + (-0.02 * x).exp()) - 0.5) * 2.;
+        *acc += (1. / (1. + (-1.5 * x).exp()) - 0.5) * 20.;
 
         if let Some(name) = count {
             *counts.entry(name).or_insert(0) += 1;

@@ -1,6 +1,6 @@
 use crate::core::assets::WorldAssets;
 use crate::core::constants::{
-    BUILDINGS_Z, BUILDING_SCALE, FRAME_RATE, HEALTH_BAR_SIZE, UNITS_Z, UNIT_SCALE,
+    BUILDINGS_Z, BUILDING_SCALE, FRAME_RATE, HEALTH_SIZE, INNER_HEALTH_SIZE, UNITS_Z, UNIT_SCALE,
 };
 use crate::core::map::systems::MapCmp;
 use crate::core::map::utils::SpriteFrameLens;
@@ -56,6 +56,9 @@ impl SpawnUnitMsg {
         }
     }
 }
+
+#[derive(Message)]
+pub struct DespawnMsg(pub Entity);
 
 pub fn spawn_building_message(
     mut commands: Commands,
@@ -126,7 +129,7 @@ pub fn spawn_unit_message(
                     Tween::new(
                         EaseFunction::Linear,
                         Duration::from_millis(FRAME_RATE * msg.unit.frames(action) as u64),
-                        SpriteFrameLens(msg.unit.frames(action) as usize),
+                        SpriteFrameLens(atlas.last_index),
                     )
                     .with_repeat_count(RepeatCount::Infinite),
                 ),
@@ -135,16 +138,16 @@ pub fn spawn_unit_message(
                 children![(
                     Sprite {
                         color: Color::from(BLACK),
-                        custom_size: Some(HEALTH_BAR_SIZE),
+                        custom_size: Some(HEALTH_SIZE),
                         ..default()
                     },
-                    Transform::from_xyz(0., HEALTH_BAR_SIZE.x * 0.75, 0.1),
+                    Transform::from_xyz(0., HEALTH_SIZE.x * 0.75, 0.1),
                     Visibility::Hidden,
                     UnitHealthWrapperCmp,
                     children![(
                         Sprite {
                             color: Color::from(LIME),
-                            custom_size: Some(HEALTH_BAR_SIZE * Vec2::new(0.9, 0.76)),
+                            custom_size: Some(INNER_HEALTH_SIZE),
                             ..default()
                         },
                         Transform::from_xyz(0., 0., 0.2),
@@ -153,5 +156,12 @@ pub fn spawn_unit_message(
                 )],
             ));
         }
+    }
+}
+
+pub fn despawn_message(mut commands: Commands, mut despawn_message: MessageReader<DespawnMsg>) {
+    for msg in despawn_message.read() {
+        // Try since there can be multiple messages to despawn the same entity
+        commands.entity(msg.0).try_despawn();
     }
 }

@@ -1,4 +1,4 @@
-use crate::core::constants::{CAPPED_DELTA_SECS_SPEED, UNIT_DEFAULT_SIZE, UNIT_SCALE};
+use crate::core::constants::{CAPPED_DELTA_SECS_SPEED, RADIUS};
 use crate::core::map::map::Map;
 use crate::core::player::Players;
 use crate::core::settings::Settings;
@@ -7,23 +7,18 @@ use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::TilePos;
 use std::collections::HashMap;
 
-fn closest_tile_on_path<'a>(current_tile: &TilePos, path: &'a Vec<TilePos>) -> &'a TilePos {
-    let mut nearest_idx = 0;
-    let mut min_dist = f32::MAX;
-
-    for (i, tile) in path.iter().enumerate() {
-        let dx = current_tile.x as i32 - tile.x as i32;
-        let dy = current_tile.y as i32 - tile.y as i32;
-        let dist_sq = (dx * dx + dy * dy) as f32;
-
-        if dist_sq < min_dist {
-            min_dist = dist_sq;
-            nearest_idx = i;
-        }
-    }
-
-    // Return the next tile after the nearest one, or the last tile if at the end
-    path.get(nearest_idx + 1).unwrap_or(path.last().unwrap())
+/// Return the next tile to walk to, which is the one following the closest tile
+fn next_tile_on_path<'a>(pos: &Vec3, path: &'a Vec<TilePos>) -> &'a TilePos {
+    path.iter()
+        .enumerate()
+        .min_by_key(|(_, tile)| {
+            let tile_pos = Map::tile_to_world(tile);
+            let dx = pos.x - tile_pos.x;
+            let dy = pos.y - tile_pos.y;
+            (dx * dx + dy * dy) as i32
+        })
+        .map(|(idx, _)| path.get(idx + 1).unwrap_or(path.last().unwrap()))
+        .unwrap()
 }
 
 pub fn run(
@@ -50,14 +45,8 @@ pub fn run(
         return;
     }
 
-    let target_tile = closest_tile_on_path(&tile, &path);
-
-    // Calculate the vector to the next location
+    let target_tile = next_tile_on_path(&unit_t.translation, &path);
     let target_pos = Map::tile_to_world(&target_tile).extend(unit_t.translation.z);
-
-    let direction = target_pos - unit_t.translation;
-
-    let radius = UNIT_DEFAULT_SIZE * 0.5 * UNIT_SCALE;
 
     // Check units in this tile + adjacent tiles
     for tile in std::iter::once(tile).chain(Map::get_neighbors(&tile)) {
@@ -70,12 +59,12 @@ pub fn run(
                 let delta = unit_t.translation - other_pos;
                 let dist = delta.length();
 
-                let range = unit.name.range() * radius;
+                let range = unit.name.range() * RADIUS;
                 if unit.color != other_unit.color {
                     // Resolve if encountered enemy
                     if dist < range {
                         unit.action = if unit.name != UnitName::Monk {
-                            Action::Attack
+                            Action::Attack(*other_e)
                         } else {
                             Action::Idle // Monk's can't attack
                         };
@@ -87,7 +76,7 @@ pub fn run(
                         && dist < range
                         && other_unit.health < other_unit.name.health()
                     {
-                        unit.action = Action::Heal;
+                        unit.action = Action::Heal(*other_e);
                         return;
                     }
                 }
@@ -96,7 +85,7 @@ pub fn run(
     }
 
     let mut next_pos = unit_t.translation
-        + direction.normalize()
+        + (target_pos - unit_t.translation).normalize()
             * unit.name.speed()
             * settings.speed
             * time.delta_secs().min(CAPPED_DELTA_SECS_SPEED);
@@ -112,7 +101,7 @@ pub fn run(
         }
 
         // Change the direction the unit is facing
-        unit_s.flip_x = next_pos.x < unit_t.translation.x;
+        // unit_s.flip_x = next_pos.x < unit_t.translation.x;
 
         unit_t.translation = next_pos;
         unit.action = Action::Run;

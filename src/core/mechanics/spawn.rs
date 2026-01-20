@@ -18,10 +18,10 @@ use bevy_tweening::{RepeatCount, Tween, TweenAnim};
 use std::time::Duration;
 
 #[derive(Component)]
-pub struct UnitHealthWrapperCmp;
+pub struct HealthWrapperCmp;
 
 #[derive(Component)]
-pub struct UnitHealthCmp;
+pub struct HealthCmp;
 
 #[derive(Message)]
 pub struct SpawnBuildingMsg {
@@ -29,23 +29,15 @@ pub struct SpawnBuildingMsg {
     pub building: BuildingName,
     pub position: Vec2,
     pub is_base: bool,
-}
-
-impl SpawnBuildingMsg {
-    pub fn new(id: ClientId, building: BuildingName, position: Vec2, is_base: bool) -> Self {
-        Self {
-            id,
-            building,
-            position,
-            is_base,
-        }
-    }
+    pub with_units: bool,
 }
 
 #[derive(Message)]
 pub struct SpawnUnitMsg {
     pub id: ClientId,
     pub unit: UnitName,
+    pub position: Option<Vec2>,
+    pub on_building: Option<Entity>,
 }
 
 impl SpawnUnitMsg {
@@ -53,6 +45,8 @@ impl SpawnUnitMsg {
         Self {
             id,
             unit,
+            position: None,
+            on_building: None,
         }
     }
 }
@@ -64,25 +58,58 @@ pub fn spawn_building_message(
     mut commands: Commands,
     players: Res<Players>,
     mut spawn_building_msg: MessageReader<SpawnBuildingMsg>,
+    mut spawn_unit_msg: MessageWriter<SpawnUnitMsg>,
     assets: Local<WorldAssets>,
 ) {
     for msg in spawn_building_msg.read() {
         let player = players.get(msg.id);
 
-        commands.spawn((
-            Sprite::from_image(assets.image(format!(
-                "{}-{}",
-                player.color.to_name(),
-                msg.building.to_name()
-            ))),
-            Transform {
-                translation: msg.position.extend(BUILDINGS_Z),
-                scale: Vec3::splat(BUILDING_SCALE),
-                ..default()
-            },
-            Building::new(msg.building, player.color, msg.is_base),
-            MapCmp,
-        ));
+        let id = commands
+            .spawn((
+                Sprite::from_image(assets.image(format!(
+                    "{}-{}",
+                    player.color.to_name(),
+                    msg.building.to_name()
+                ))),
+                Transform {
+                    translation: msg.position.extend(BUILDINGS_Z),
+                    scale: Vec3::splat(BUILDING_SCALE),
+                    ..default()
+                },
+                Building::new(msg.building, player.color, msg.is_base),
+                MapCmp,
+                children![(
+                    Sprite {
+                        color: Color::from(BLACK),
+                        custom_size: Some(2. * HEALTH_SIZE),
+                        ..default()
+                    },
+                    Transform::from_xyz(0., 2. * HEALTH_SIZE.x * 0.75, 0.1),
+                    Visibility::Hidden,
+                    HealthWrapperCmp,
+                    children![(
+                        Sprite {
+                            color: Color::from(LIME),
+                            custom_size: Some(2. * INNER_HEALTH_SIZE),
+                            ..default()
+                        },
+                        Transform::from_xyz(0., 0., 0.2),
+                        HealthCmp,
+                    )],
+                )],
+            ))
+            .id();
+
+        if msg.with_units {
+            for pos in msg.building.units() {
+                spawn_unit_msg.write(SpawnUnitMsg {
+                    id: msg.id,
+                    unit: UnitName::Archer,
+                    position: Some(msg.position + pos),
+                    on_building: Some(id),
+                });
+            }
+        }
     }
 }
 
@@ -104,10 +131,18 @@ pub fn spawn_unit_message(
             action.to_name()
         ));
 
-        // Spawn units at the door of the base
-        if let Some((base_t, _)) =
-            building_q.iter().find(|(_, b)| b.color == player.color && b.is_base)
-        {
+        // Determine the spawning translation
+        // If not provided, use the default position at the door of the base
+        let translation = if let Some(pos) = msg.position {
+            Some(pos.extend(UNITS_Z))
+        } else {
+            building_q
+                .iter()
+                .find(|(_, b)| b.color == player.color && b.is_base)
+                .map(|(t, _)| Vec3::new(t.translation.x, t.translation.y - 70., UNITS_Z))
+        };
+
+        if let Some(translation) = translation {
             commands.spawn((
                 Sprite {
                     image: atlas.image,
@@ -117,11 +152,7 @@ pub fn spawn_unit_message(
                     ..default()
                 },
                 Transform {
-                    translation: Vec3::new(
-                        base_t.translation.x,
-                        base_t.translation.y - 70.,
-                        UNITS_Z,
-                    ),
+                    translation,
                     scale: Vec3::splat(UNIT_SCALE),
                     ..default()
                 },
@@ -133,7 +164,7 @@ pub fn spawn_unit_message(
                     )
                     .with_repeat_count(RepeatCount::Infinite),
                 ),
-                Unit::new(msg.unit, player),
+                Unit::new(msg.unit, player, msg.on_building),
                 MapCmp,
                 children![(
                     Sprite {
@@ -143,7 +174,7 @@ pub fn spawn_unit_message(
                     },
                     Transform::from_xyz(0., HEALTH_SIZE.x * 0.75, 0.1),
                     Visibility::Hidden,
-                    UnitHealthWrapperCmp,
+                    HealthWrapperCmp,
                     children![(
                         Sprite {
                             color: Color::from(LIME),
@@ -151,7 +182,7 @@ pub fn spawn_unit_message(
                             ..default()
                         },
                         Transform::from_xyz(0., 0., 0.2),
-                        UnitHealthCmp,
+                        HealthCmp,
                     )],
                 )],
             ));
@@ -159,9 +190,20 @@ pub fn spawn_unit_message(
     }
 }
 
-pub fn despawn_message(mut commands: Commands, mut despawn_message: MessageReader<DespawnMsg>) {
+pub fn despawn_message(
+    mut commands: Commands,
+    unit_q: Query<(Entity, &Unit)>,
+    mut despawn_message: MessageReader<DespawnMsg>,
+) {
     for msg in despawn_message.read() {
         // Try since there can be multiple messages to despawn the same entity
         commands.entity(msg.0).try_despawn();
+
+        // Despawn any units on top of this building
+        for (unit_e, unit) in unit_q.iter() {
+            if unit.on_building == Some(msg.0) {
+                commands.entity(unit_e).despawn();
+            }
+        }
     }
 }

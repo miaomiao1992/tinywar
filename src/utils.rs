@@ -63,19 +63,3 @@ impl<T: Debug> NameFromEnum for T {
         name
     }
 }
-
-/// Trait to safely divide by zero
-pub trait SafeDiv: Sized + PartialEq + Copy {
-    fn safe_div(self, b: Self) -> Self;
-}
-
-impl SafeDiv for f32 {
-    #[inline]
-    fn safe_div(self, b: Self) -> Self {
-        if b == 0.0 {
-            0.0
-        } else {
-            self / b
-        }
-    }
-}

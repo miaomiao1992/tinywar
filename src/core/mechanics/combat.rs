@@ -3,6 +3,7 @@ use crate::core::constants::{ARROW_ON_GROUND_SECS, RADIUS, UNITS_Z};
 use crate::core::map::systems::MapCmp;
 use crate::core::mechanics::spawn::DespawnMsg;
 use crate::core::settings::PlayerColor;
+use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit, UnitName};
 use bevy::prelude::*;
 use bevy_tweening::CycleCompletedEvent;
@@ -51,67 +52,66 @@ impl ApplyDamageMsg {
 
 pub fn resolve_attack(
     mut commands: Commands,
-    mut unit_q: Query<(Entity, &Transform, &mut Unit)>,
+    entity_q: Query<(Entity, &Transform)>,
+    unit_q: Query<(&Transform, &Unit)>,
     mut cycle_completed_msg: MessageReader<CycleCompletedEvent>,
     mut apply_damage_msg: MessageWriter<ApplyDamageMsg>,
     assets: Local<WorldAssets>,
 ) {
     // Apply damage after the attacking animation finished
     for msg in cycle_completed_msg.read() {
-        let (unit, unit_t) = if let Ok((_, unit_t, unit)) = unit_q.get(msg.anim_entity) {
-            (*unit, unit_t.clone())
-        } else {
-            continue;
-        };
+        if let Ok((unit_t, unit)) = unit_q.get(msg.anim_entity) {
+            match unit.action {
+                Action::Attack(e) | Action::Heal(e) => {
+                    if let Ok((target_e, target_t)) = entity_q.get(e) {
+                        if unit.name == UnitName::Archer {
+                            // Archers don't apply damage but spawn arrows at the end of the animation
+                            let start_pos = Vec3::new(
+                                unit_t.translation.x
+                                    + 0.25
+                                        * RADIUS
+                                        * if target_t.translation.x < unit_t.translation.x {
+                                            -1.
+                                        } else {
+                                            1.
+                                        },
+                                unit_t.translation.y + 0.25 * RADIUS,
+                                UNITS_Z + 0.1,
+                            );
 
-        match unit.action {
-            Action::Attack(e) | Action::Heal(e) => {
-                if let Ok((target_e, target_t, _)) = unit_q.get_mut(e) {
-                    if unit.name == UnitName::Archer {
-                        // Archers don't apply damage but spawn arrows at the end of the animation
-                        let start_pos = Vec3::new(
-                            unit_t.translation.x
-                                + 0.25
-                                    * RADIUS
-                                    * if target_t.translation.x < unit_t.translation.x {
-                                        -1.
-                                    } else {
-                                        1.
-                                    },
-                            unit_t.translation.y + 0.25 * RADIUS,
-                            UNITS_Z + 0.1,
-                        );
-
-                        commands.spawn((
-                            Sprite {
-                                image: assets.image("arrow"),
-                                ..default()
-                            },
-                            Transform {
-                                translation: start_pos,
-                                rotation: Quat::from_rotation_z(FRAC_PI_4),
-                                scale: unit_t.scale,
-                            },
-                            Arrow::new(
-                                unit.color,
-                                unit.name.damage(),
-                                start_pos,
-                                target_t.translation,
-                            ),
-                            MapCmp,
-                        ));
-                    } else {
-                        apply_damage_msg.write(ApplyDamageMsg::new(target_e, unit.name.damage()));
+                            commands.spawn((
+                                Sprite {
+                                    image: assets.image("arrow"),
+                                    ..default()
+                                },
+                                Transform {
+                                    translation: start_pos,
+                                    rotation: Quat::from_rotation_z(FRAC_PI_4),
+                                    scale: unit_t.scale,
+                                },
+                                Arrow::new(
+                                    unit.color,
+                                    unit.name.damage(),
+                                    start_pos,
+                                    target_t.translation,
+                                ),
+                                MapCmp,
+                            ));
+                        } else {
+                            apply_damage_msg
+                                .write(ApplyDamageMsg::new(target_e, unit.name.damage()));
+                        }
                     }
-                }
-            },
-            _ => (),
+                },
+                _ => (),
+            }
         }
     }
 }
 
 pub fn apply_damage_message(
     mut unit_q: Query<(Entity, &mut Unit)>,
+    mut building_q: Query<(Entity, &mut Building)>,
     mut apply_damage_msg: MessageReader<ApplyDamageMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
 ) {
@@ -120,6 +120,13 @@ pub fn apply_damage_message(
             unit.health = (unit.health - msg.damage).clamp(0., unit.name.health());
             if unit.health == 0. {
                 despawn_msg.write(DespawnMsg(unit_e));
+            }
+        }
+
+        if let Ok((building_e, mut building)) = building_q.get_mut(msg.entity) {
+            building.health = (building.health - msg.damage).clamp(0., building.name.health());
+            if building.health == 0. {
+                despawn_msg.write(DespawnMsg(building_e));
             }
         }
     }

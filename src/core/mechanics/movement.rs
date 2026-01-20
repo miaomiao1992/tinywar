@@ -4,39 +4,18 @@ use crate::core::mechanics::combat::{ApplyDamageMsg, Arrow};
 use crate::core::mechanics::spawn::DespawnMsg;
 use crate::core::player::Players;
 use crate::core::settings::Settings;
+use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit, UnitName};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::TilePos;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 /// Get all tiles at <= `distance` from `pos`
-fn get_tiles_at_distance(pos: &TilePos, distance: u32) -> Vec<TilePos> {
-    let mut visited: HashSet<TilePos> = HashSet::new();
-    let mut queue: VecDeque<(TilePos, u32)> = VecDeque::new();
-    let mut result = Vec::new();
-
-    visited.insert(*pos);
-    queue.push_back((*pos, 0));
-
-    while let Some((current, dist)) = queue.pop_front() {
-        if dist == distance {
-            result.push(current);
-            continue;
-        }
-
-        if dist > distance {
-            continue;
-        }
-
-        for neighbor in Map::get_neighbors(&current, false) {
-            if visited.insert(neighbor) {
-                queue.push_back((neighbor, dist + 1));
-            }
-        }
-    }
-
-    result
+fn get_tiles_at_distance(pos: &TilePos, d: u32) -> HashSet<TilePos> {
+    (pos.x.saturating_sub(d)..=pos.x + d)
+        .flat_map(|x| (pos.y.saturating_sub(d)..=pos.y + d).map(move |y| TilePos::new(x, y)))
+        .collect()
 }
 
 /// Return the next tile to walk to, which is the one following the closest tile
@@ -58,7 +37,8 @@ fn move_unit(
     unit: &mut Unit,
     unit_t: &mut Transform,
     unit_s: &mut Sprite,
-    positions: &HashMap<TilePos, Vec<(Entity, Vec3, Unit)>>,
+    unit_pos: &HashMap<TilePos, Vec<(Entity, Vec3, Unit)>>,
+    building_pos: &HashMap<TilePos, Vec<(Entity, Vec3, Building)>>,
     settings: &Settings,
     map: &Map,
     players: &Players,
@@ -81,13 +61,14 @@ fn move_unit(
     let target_pos = Map::tile_to_world(&target_tile).extend(unit_t.translation.z);
 
     // Check units in this tile + two adjacent tiles
-    for tile in std::iter::once(tile).chain(get_tiles_at_distance(&tile, 2)) {
-        if let Some(units) = positions.get(&tile) {
+    for tile in get_tiles_at_distance(&tile, 2) {
+        if let Some(units) = unit_pos.get(&tile) {
             for (other_e, other_pos, other) in units {
-                let distance = unit_t.translation.distance(*other_pos);
+                let delta = unit_t.translation - other_pos;
+                let dist = delta.length();
 
                 // Skip if self or too far to interact
-                if unit_e == *other_e || distance > unit.name.range() * RADIUS {
+                if unit_e == *other_e || dist > unit.name.range() * RADIUS {
                     continue;
                 }
 
@@ -99,7 +80,7 @@ fn move_unit(
                         Action::Heal(*other_e)
                     },
                     (u, false) if u == UnitName::Archer => Action::Attack(*other_e),
-                    (u, false) if u != UnitName::Priest && distance <= 2. * RADIUS => {
+                    (u, false) if u != UnitName::Priest && dist <= 2. * RADIUS => {
                         Action::Attack(*other_e)
                     },
                     _ => continue,
@@ -108,6 +89,22 @@ fn move_unit(
                 return;
             }
         }
+
+        if let Some(buildings) = building_pos.get(&tile) {
+            for (building_e, building_pos, building) in buildings {
+                let dist = unit_t.translation.distance(*building_pos);
+
+                if building.color != unit.color && dist <= unit.name.range() * RADIUS {
+                    unit.action = Action::Attack(*building_e);
+                    return;
+                }
+            }
+        }
+    }
+
+    // Units on buildings don't move
+    if unit.on_building.is_some() {
+        return;
     }
 
     let mut next_pos = unit_t.translation
@@ -115,6 +112,7 @@ fn move_unit(
             * unit.name.speed()
             * settings.speed
             * time.delta_secs().min(CAPPED_DELTA_SECS_SPEED);
+
     let next_tile = Map::world_to_tile(&next_pos);
 
     if tile == next_tile || Map::is_walkable(&next_tile) {
@@ -187,7 +185,7 @@ fn move_arrow(
 
     // Check if the arrow hit someone (in this or adjacent tiles)
     let tile = Map::world_to_tile(&arrow_t.translation);
-    for tile in std::iter::once(tile).chain(Map::get_neighbors(&tile, false)) {
+    for tile in get_tiles_at_distance(&tile, 2) {
         if let Some(units) = positions.get(&tile) {
             for (other_e, other_pos, other_unit) in units {
                 if other_unit.color != arrow.color
@@ -216,7 +214,11 @@ fn move_arrow(
 
 pub fn apply_movement(
     mut unit_q: Query<(Entity, &mut Transform, &mut Sprite, &mut Unit)>,
-    mut arrow_q: Query<(Entity, &mut Transform, &mut Sprite, &mut Arrow), Without<Unit>>,
+    building_q: Query<(Entity, &Transform, &Building), Without<Unit>>,
+    mut arrow_q: Query<
+        (Entity, &mut Transform, &mut Sprite, &mut Arrow),
+        (Without<Unit>, Without<Building>),
+    >,
     mut apply_damage_msg: MessageWriter<ApplyDamageMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
     settings: Res<Settings>,
@@ -226,10 +228,17 @@ pub fn apply_movement(
     time: Res<Time>,
 ) {
     // Build spatial hashmap: tile -> positions + unit
-    let positions: HashMap<TilePos, Vec<(Entity, Vec3, Unit)>> =
+    let unit_pos: HashMap<TilePos, Vec<(Entity, Vec3, Unit)>> =
         unit_q.iter().fold(HashMap::new(), |mut acc, (e, t, _, u)| {
             let tile = Map::world_to_tile(&t.translation);
-            acc.entry(tile).or_default().push((e, t.translation, u.clone()));
+            acc.entry(tile).or_default().push((e, t.translation, *u));
+            acc
+        });
+
+    let building_pos: HashMap<TilePos, Vec<(Entity, Vec3, Building)>> =
+        building_q.iter().fold(HashMap::new(), |mut acc, (e, t, b)| {
+            let tile = Map::world_to_tile(&t.translation);
+            acc.entry(tile).or_default().push((e, t.translation, *b));
             acc
         });
 
@@ -242,7 +251,8 @@ pub fn apply_movement(
             &mut unit,
             &mut unit_t,
             &mut unit_s,
-            &positions,
+            &unit_pos,
+            &building_pos,
             &settings,
             &map,
             &players,
@@ -259,7 +269,7 @@ pub fn apply_movement(
             &mut arrow_s,
             &mut apply_damage_msg,
             &mut despawn_msg,
-            &positions,
+            &unit_pos,
             &settings,
             &images,
             &time,

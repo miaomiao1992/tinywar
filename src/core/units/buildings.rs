@@ -9,11 +9,28 @@ pub enum BuildingName {
     Castle,
 }
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+impl BuildingName {
+    pub fn units(&self) -> Vec<Vec2> {
+        match self {
+            BuildingName::Castle => {
+                vec![Vec2::new(-70., 35.), Vec2::new(0., 20.), Vec2::new(70., 35.)]
+            },
+        }
+    }
+
+    pub fn health(&self) -> f32 {
+        match self {
+            BuildingName::Castle => 250.,
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Building {
     pub name: BuildingName,
     pub color: PlayerColor,
     pub is_base: bool,
+    pub health: f32,
 }
 
 impl Building {
@@ -22,6 +39,7 @@ impl Building {
             name,
             color,
             is_base,
+            health: name.health(),
         }
     }
 }

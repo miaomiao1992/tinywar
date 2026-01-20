@@ -363,19 +363,15 @@ pub fn start_new_game_message(
         };
 
         // Spawn starting buildings
-        let positions = Map::starting_positions();
-        spawn_building_msg.write(SpawnBuildingMsg::new(
-            0,
-            BuildingName::default(),
-            positions[0],
-            true,
-        ));
-        spawn_building_msg.write(SpawnBuildingMsg::new(
-            enemy_id,
-            BuildingName::default(),
-            positions[1],
-            true,
-        ));
+        for (id, position) in [0, enemy_id].into_iter().zip(Map::starting_positions()) {
+            spawn_building_msg.write(SpawnBuildingMsg {
+                id,
+                building: BuildingName::default(),
+                position,
+                is_base: true,
+                with_units: true,
+            });
+        }
 
         commands.insert_resource(Host);
         commands.insert_resource(Players {

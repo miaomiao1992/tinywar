@@ -166,16 +166,18 @@ pub struct Unit {
     pub action: Action,
     pub health: f32,
     pub path: Path,
+    pub on_building: Option<Entity>,
 }
 
 impl Unit {
-    pub fn new(name: UnitName, player: &Player) -> Self {
+    pub fn new(name: UnitName, player: &Player, on_building: Option<Entity>) -> Self {
         Unit {
             name,
             color: player.color,
             action: Action::default(),
             health: name.health(),
             path: *player.direction.paths().choose(&mut rng()).unwrap(),
+            on_building,
         }
     }
 }

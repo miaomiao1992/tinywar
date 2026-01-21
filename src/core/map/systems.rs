@@ -1,7 +1,16 @@
+use crate::core::assets::WorldAssets;
+use crate::core::audio::PlayAudioMsg;
 use crate::core::camera::MainCamera;
-use crate::core::constants::{MAP_Z, MAX_ZOOM};
+use crate::core::constants::{FRAME_RATE, MAP_Z, MAX_ZOOM};
+use crate::core::map::ui::systems::UiCmp;
+use crate::core::map::utils::{SpriteFrameLens, UiScaleLens};
+use crate::core::player::Players;
+use crate::core::units::buildings::Building;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TilemapAnchor};
+use bevy_tweening::lens::UiPositionLens;
+use bevy_tweening::{Delay, RepeatCount, Tween, TweenAnim};
+use std::time::Duration;
 
 #[derive(Component)]
 pub struct MapCmp;
@@ -22,6 +31,47 @@ pub fn draw_map(
         TiledMap(assets.load("map/map.tmx")),
         TilemapAnchor::Center,
         Transform::from_xyz(0., 0., MAP_Z),
+        MapCmp,
+    ));
+}
+
+pub fn setup_end_game(
+    mut commands: Commands,
+    building_q: Query<&Building>,
+    players: Res<Players>,
+    mut play_audio_msg: MessageWriter<PlayAudioMsg>,
+    assets: Local<WorldAssets>,
+) {
+    let status = if building_q.iter().any(|b| b.color == players.me.color && b.is_base) {
+        "victory"
+    } else {
+        "defeat"
+    };
+
+    play_audio_msg.write(PlayAudioMsg::new(status));
+
+    commands.spawn((
+        ImageNode::new(assets.image(status)),
+        TweenAnim::new(
+            Tween::new(
+                EaseFunction::QuadraticInOut,
+                Duration::from_secs(2),
+                UiScaleLens {
+                    start: Vec2::ZERO,
+                    end: Vec2::splat(0.6),
+                },
+            ), // .then(Delay::new(Duration::from_secs(2)))
+               // .then(Tween::new(
+               //     EaseFunction::QuadraticInOut,
+               //     Duration::from_secs(2),
+               //     UiPositionLens {
+               //         start: UiRect::ZERO,
+               //         end: UiRect::top(Val::Percent(5.)),
+               //     },
+               // )),
+        ),
+        Pickable::IGNORE,
+        UiCmp,
         MapCmp,
     ));
 }

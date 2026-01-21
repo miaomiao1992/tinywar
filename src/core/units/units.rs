@@ -92,7 +92,10 @@ impl UnitName {
         }
     }
 
-    /// Spawning time in milliseconds
+    pub fn can_attack(&self) -> bool {
+        !matches!(self, Self::Priest)
+    }
+
     pub fn spawn_duration(&self) -> u64 {
         match self {
             UnitName::Warrior => 2000,
@@ -178,6 +181,14 @@ impl Unit {
             health: name.health(),
             path: *player.direction.paths().choose(&mut rng()).unwrap(),
             on_building,
+        }
+    }
+
+    pub fn range(&self) -> f32 {
+        if self.on_building.is_some() {
+            2. * self.name.range()
+        } else {
+            self.name.range()
         }
     }
 }

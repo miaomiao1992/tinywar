@@ -18,8 +18,8 @@ use crate::core::audio::*;
 use crate::core::camera::*;
 use crate::core::constants::WATER_COLOR;
 use crate::core::map::map::Map;
-use crate::core::map::systems::{draw_map, MapCmp};
-use crate::core::map::ui::systems::{draw_ui, update_ui};
+use crate::core::map::systems::{draw_map, setup_end_game, MapCmp};
+use crate::core::map::ui::systems::{draw_ui, update_ui, UiCmp};
 use crate::core::mechanics::combat::{apply_damage_message, resolve_attack, ApplyDamageMsg};
 use crate::core::mechanics::movement::apply_movement;
 use crate::core::mechanics::queue::*;
@@ -35,7 +35,7 @@ use crate::core::states::{AppState, AudioState, GameState};
 use crate::core::systems::{
     check_keys_game, check_keys_menu, check_keys_playing_game, on_resize_system,
 };
-use crate::core::units::systems::update_units;
+use crate::core::units::systems::{update_buildings, update_units};
 use crate::core::utils::despawn;
 use bevy::prelude::*;
 use bevy_renet::renet::{RenetClient, RenetServer};
@@ -51,6 +51,9 @@ struct InPlayingSet;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 struct InPlayingOrPausedSet;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+struct InPlayingOrPausedOrEndSet;
 
 macro_rules! configure_stages {
     ($app:expr, $set:ident, $run_if:expr) => {
@@ -106,11 +109,19 @@ impl Plugin for GamePlugin {
                 .or(in_state(GameState::Paused))
                 .and(in_state(AppState::Game))
         );
+        configure_stages!(
+            app,
+            InPlayingOrPausedOrEndSet,
+            in_state(GameState::Playing)
+                .or(in_state(GameState::Paused))
+                .or(in_state(GameState::EndGame))
+                .and(in_state(AppState::Game))
+        );
 
         app
             // Camera
             .add_systems(Startup, setup_camera)
-            .add_systems(Update, (move_camera, move_camera_keys).in_set(InPlayingOrPausedSet))
+            .add_systems(Update, (move_camera, move_camera_keys).in_set(InPlayingOrPausedOrEndSet))
             // Audio
             .add_systems(Startup, setup_audio)
             .add_systems(OnEnter(GameState::Playing), play_music)
@@ -165,6 +176,7 @@ impl Plugin for GamePlugin {
                     spawn_unit_message,
                     spawn_building_message,
                     update_units,
+                    update_buildings,
                     (apply_movement, resolve_attack, apply_damage_message)
                         .chain()
                         .run_if(resource_exists::<Host>),
@@ -178,6 +190,7 @@ impl Plugin for GamePlugin {
             )
             .add_systems(OnEnter(GameState::GameMenu), setup_game_menu)
             .add_systems(OnExit(GameState::GameMenu), despawn::<MenuCmp>)
+            .add_systems(OnEnter(GameState::EndGame), (despawn::<UiCmp>, setup_end_game))
             .add_systems(OnEnter(GameState::Settings), setup_game_settings)
             .add_systems(OnExit(GameState::Settings), despawn::<MenuCmp>);
 

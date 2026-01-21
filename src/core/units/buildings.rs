@@ -10,6 +10,12 @@ pub enum BuildingName {
 }
 
 impl BuildingName {
+    pub fn size(&self) -> Vec2 {
+        match self {
+            BuildingName::Castle => Vec2::new(320., 256.),
+        }
+    }
+
     pub fn units(&self) -> Vec<Vec2> {
         match self {
             BuildingName::Castle => {
@@ -20,7 +26,7 @@ impl BuildingName {
 
     pub fn health(&self) -> f32 {
         match self {
-            BuildingName::Castle => 250.,
+            BuildingName::Castle => 2000.,
         }
     }
 }

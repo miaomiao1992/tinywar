@@ -1,14 +1,26 @@
 use crate::core::assets::WorldAssets;
-use crate::core::constants::{ARROW_ON_GROUND_SECS, RADIUS, UNITS_Z};
+use crate::core::audio::PlayAudioMsg;
+use crate::core::constants::{EXPLOSION_Z, FRAME_RATE, RADIUS, UNITS_Z};
 use crate::core::map::systems::MapCmp;
+use crate::core::map::utils::SpriteFrameLens;
 use crate::core::mechanics::spawn::DespawnMsg;
 use crate::core::settings::PlayerColor;
 use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit, UnitName};
 use bevy::prelude::*;
-use bevy_tweening::CycleCompletedEvent;
+use bevy_tweening::{CycleCompletedEvent, Delay, Tween, TweenAnim};
+use rand::{rng, Rng};
 use std::f32::consts::FRAC_PI_4;
 use std::time::Duration;
+
+#[derive(Component)]
+pub struct BuildingDestroyCmp(pub Timer);
+
+impl Default for BuildingDestroyCmp {
+    fn default() -> Self {
+        Self(Timer::new(Duration::from_millis(1500), TimerMode::Once))
+    }
+}
 
 #[derive(Component)]
 pub struct Arrow {
@@ -22,6 +34,9 @@ pub struct Arrow {
 }
 
 impl Arrow {
+    pub const SPEED: f32 = 160.;
+    pub const ON_GROUND_SECS: u64 = 2;
+
     pub fn new(color: PlayerColor, damage: f32, start: Vec3, destination: Vec3) -> Self {
         Arrow {
             color,
@@ -30,7 +45,7 @@ impl Arrow {
             destination,
             total_distance: start.distance(destination),
             traveled: 0.,
-            despawn_timer: Timer::new(Duration::from_secs(ARROW_ON_GROUND_SECS), TimerMode::Once),
+            despawn_timer: Timer::new(Duration::from_secs(Self::ON_GROUND_SECS), TimerMode::Once),
         }
     }
 }
@@ -110,10 +125,13 @@ pub fn resolve_attack(
 }
 
 pub fn apply_damage_message(
+    mut commands: Commands,
     mut unit_q: Query<(Entity, &mut Unit)>,
     mut building_q: Query<(Entity, &mut Building)>,
     mut apply_damage_msg: MessageReader<ApplyDamageMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
+    mut play_audio_msg: MessageWriter<PlayAudioMsg>,
+    assets: Local<WorldAssets>,
 ) {
     for msg in apply_damage_msg.read() {
         if let Ok((unit_e, mut unit)) = unit_q.get_mut(msg.entity) {
@@ -124,9 +142,55 @@ pub fn apply_damage_message(
         }
 
         if let Ok((building_e, mut building)) = building_q.get_mut(msg.entity) {
-            building.health = (building.health - msg.damage).clamp(0., building.name.health());
-            if building.health == 0. {
-                despawn_msg.write(DespawnMsg(building_e));
+            // First skip buildings that already started the explosion animations
+            if building.health > 0. {
+                building.health = (building.health - msg.damage).clamp(0., building.name.health());
+                if building.health == 0. {
+                    let mut rng = rng();
+
+                    play_audio_msg.write(PlayAudioMsg::new("explosion"));
+
+                    // Insert destroy animation
+                    commands
+                        .entity(building_e)
+                        .insert(BuildingDestroyCmp::default())
+                        .with_children(|parent| {
+                            let size = building.name.size();
+                            for _ in 0..7 {
+                                let atlas =
+                                    assets.atlas(format!("explosion{}", rng.random_range(1..3)));
+
+                                parent.spawn((
+                                    Sprite {
+                                        image: atlas.image,
+                                        texture_atlas: Some(atlas.atlas),
+                                        ..default()
+                                    },
+                                    Transform {
+                                        translation: Vec3::new(
+                                            rng.random_range(-0.4 * size.x..0.4 * size.x),
+                                            rng.random_range(-0.3 * size.y..0.3 * size.y),
+                                            EXPLOSION_Z,
+                                        ),
+                                        scale: Vec3::splat(rng.random_range(1.0..1.5)),
+                                        ..default()
+                                    },
+                                    TweenAnim::new(
+                                        Delay::new(Duration::from_millis(
+                                            rng.random_range(0..1000),
+                                        ))
+                                        .then(Tween::new(
+                                            EaseFunction::Linear,
+                                            Duration::from_millis(
+                                                FRAME_RATE * atlas.last_index as u64,
+                                            ),
+                                            SpriteFrameLens(atlas.last_index),
+                                        )),
+                                    ),
+                                ));
+                            }
+                        });
+                }
             }
         }
     }

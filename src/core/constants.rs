@@ -22,6 +22,7 @@ pub const WATER_COLOR: Color = Color::srgb_u8(71, 171, 169);
 pub const MAP_Z: f32 = 0.;
 pub const BUILDINGS_Z: f32 = 1.;
 pub const UNITS_Z: f32 = 2.;
+pub const EXPLOSION_Z: f32 = 3.;
 
 /// Game settings
 pub const MAX_QUEUE_LENGTH: usize = 10;
@@ -35,9 +36,6 @@ pub const UNIT_DEFAULT_SIZE: f32 = 192.;
 pub const RADIUS: f32 = UNIT_DEFAULT_SIZE * UNIT_SCALE * 0.5;
 pub const SEPARATION_STRENGTH: f32 = 4.;
 pub const SEPARATION_RADIUS: f32 = 2. * RADIUS;
-pub const BUILDING_SCALE: f32 = 0.7;
 pub const UNIT_SCALE: f32 = 0.5;
-pub const HEALTH_SIZE: Vec2 = Vec2::new(75., 15.);
-pub const INNER_HEALTH_SIZE: Vec2 = Vec2::new(HEALTH_SIZE.x * 0.92, HEALTH_SIZE.y * 0.75);
-pub const ARROW_SPEED: f32 = 160.;
-pub const ARROW_ON_GROUND_SECS: u64 = 2;
+pub const BUILDING_SCALE: f32 = 0.7;
+pub const HEALTH_SIZE: Vec2 = Vec2::new(71., 11.);

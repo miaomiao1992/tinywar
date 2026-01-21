@@ -16,13 +16,15 @@ use strum::IntoEnumIterator;
 pub struct QueueUnitMsg {
     pub id: ClientId,
     pub unit: UnitName,
+    pub automatic: bool,
 }
 
 impl QueueUnitMsg {
-    pub fn new(id: ClientId, unit: UnitName) -> Self {
+    pub fn new(id: ClientId, unit: UnitName, automatic: bool) -> Self {
         Self {
             id,
             unit,
+            automatic,
         }
     }
 }
@@ -35,7 +37,7 @@ pub fn queue_message(
     for msg in queue_unit_msg.read() {
         let player = players.get_mut(msg.id);
 
-        if player.queue.len() < MAX_QUEUE_LENGTH {
+        if player.queue.len() < MAX_QUEUE_LENGTH && (!msg.automatic || player.queue.is_empty()) {
             player.queue.push_back(QueuedUnit::new(msg.unit, msg.unit.spawn_duration()));
         } else if player.is_human() {
             play_audio_msg.write(PlayAudioMsg::new("error"));
@@ -59,7 +61,7 @@ pub fn queue_resolve(
                 spawn = Some(queue.unit);
             }
         } else if player.is_human() {
-            queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default));
+            queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default, true));
         } else {
             // Spawn units randomly with inverse probability to their spawning time
             let units: Vec<UnitName> = UnitName::iter().collect();
@@ -69,7 +71,7 @@ pub fn queue_resolve(
             let dist = WeightedIndex::new(&weights).unwrap();
             let unit = units[dist.sample(&mut rng())];
 
-            queue_unit_msg.write(QueueUnitMsg::new(player.id, unit));
+            queue_unit_msg.write(QueueUnitMsg::new(player.id, unit, true));
         }
 
         if let Some(unit) = spawn {

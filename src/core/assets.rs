@@ -71,6 +71,9 @@ impl FromWorld for WorldAssets {
             ("button", assets.load("audio/button.ogg")),
             ("click", assets.load("audio/click.ogg")),
             ("error", assets.load("audio/error.ogg")),
+            ("defeat", assets.load("audio/defeat.ogg")),
+            ("victory", assets.load("audio/victory.ogg")),
+            ("explosion", assets.load("audio/explosion.ogg")),
         ]);
 
         let fonts = HashMap::from([
@@ -89,15 +92,23 @@ impl FromWorld for WorldAssets {
             ("mid arrow", assets.load("images/icons/mid arrow.png")),
             // Background
             ("bg", assets.load("images/bg/bg.png")),
+            ("victory", assets.load("images/bg/victory.png")),
+            ("defeat", assets.load("images/bg/defeat.png")),
             // Ui
             ("swords1", assets.load("images/ui/swords1.png")),
             ("swords2", assets.load("images/ui/swords2.png")),
             ("swords3", assets.load("images/ui/swords3.png")),
             ("small ribbons", assets.load("images/ui/small ribbons.png")),
             ("large ribbons", assets.load("images/ui/large ribbons.png")),
-            // Animations
+            // Units
             ("arrow", assets.load("images/units/arrow.png")),
-            ("heal", assets.load("images/units/heal.png")),
+            // Effects
+            ("heal", assets.load("images/effects/heal.png")),
+            ("explosion1", assets.load("images/effects/explosion1.png")),
+            ("explosion2", assets.load("images/effects/explosion2.png")),
+            ("fire1", assets.load("images/effects/fire1.png")),
+            ("fire2", assets.load("images/effects/fire2.png")),
+            ("fire3", assets.load("images/effects/fire3.png")),
         ]);
 
         let mut atlas: HashMap<&'static str, AtlasInfo> = HashMap::new();
@@ -210,17 +221,79 @@ impl FromWorld for WorldAssets {
         }
 
         let heal = TextureAtlasLayout::from_grid(UVec2::splat(192), 11, 1, None, None);
-        atlas.extend([(
-            "heal",
-            AtlasInfo {
-                image: images["heal"].clone(),
-                atlas: TextureAtlas {
-                    layout: texture.add(heal),
-                    index: 0,
+        let explosion1 = TextureAtlasLayout::from_grid(UVec2::splat(192), 8, 1, None, None);
+        let explosion2 = TextureAtlasLayout::from_grid(UVec2::splat(192), 10, 1, None, None);
+        let fire1 = TextureAtlasLayout::from_grid(UVec2::splat(64), 8, 1, None, None);
+        let fire2 = TextureAtlasLayout::from_grid(UVec2::splat(64), 10, 1, None, None);
+        let fire3 = TextureAtlasLayout::from_grid(UVec2::splat(64), 12, 1, None, None);
+        atlas.extend([
+            (
+                "heal",
+                AtlasInfo {
+                    image: images["heal"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(heal),
+                        index: 0,
+                    },
+                    last_index: 11,
                 },
-                last_index: 11,
-            },
-        )]);
+            ),
+            (
+                "explosion1",
+                AtlasInfo {
+                    image: images["explosion1"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(explosion1),
+                        index: 0,
+                    },
+                    last_index: 7,
+                },
+            ),
+            (
+                "explosion2",
+                AtlasInfo {
+                    image: images["explosion2"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(explosion2),
+                        index: 0,
+                    },
+                    last_index: 9,
+                },
+            ),
+            (
+                "fire1",
+                AtlasInfo {
+                    image: images["fire1"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(fire1),
+                        index: 0,
+                    },
+                    last_index: 7,
+                },
+            ),
+            (
+                "fire2",
+                AtlasInfo {
+                    image: images["fire2"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(fire2),
+                        index: 0,
+                    },
+                    last_index: 9,
+                },
+            ),
+            (
+                "fire3",
+                AtlasInfo {
+                    image: images["fire3"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(fire3),
+                        index: 0,
+                    },
+                    last_index: 11,
+                },
+            ),
+        ]);
 
         Self {
             audio,

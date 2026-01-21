@@ -270,7 +270,7 @@ pub fn draw_ui(
                          mut play_audio_msg: MessageWriter<PlayAudioMsg>| {
                             if event.button == PointerButton::Primary {
                                 let unit = btn_q.get(event.entity).unwrap().0;
-                                queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit));
+                                queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit, false));
                                 play_audio_msg.write(PlayAudioMsg::new("button"));
                             }
                         },

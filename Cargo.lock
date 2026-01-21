@@ -5423,6 +5423,7 @@ dependencies = [
  "bincode",
  "getrandom 0.3.4",
  "image",
+ "itertools 0.14.0",
  "pathfinding",
  "rand",
  "regex",

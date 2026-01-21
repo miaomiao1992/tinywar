@@ -1,7 +1,5 @@
 use crate::core::assets::WorldAssets;
-use crate::core::constants::{
-    BUILDINGS_Z, BUILDING_SCALE, FRAME_RATE, HEALTH_SIZE, INNER_HEALTH_SIZE, UNITS_Z, UNIT_SCALE,
-};
+use crate::core::constants::*;
 use crate::core::map::systems::MapCmp;
 use crate::core::map::utils::SpriteFrameLens;
 use crate::core::player::Players;
@@ -63,14 +61,19 @@ pub fn spawn_building_message(
 ) {
     for msg in spawn_building_msg.read() {
         let player = players.get(msg.id);
+        let size = msg.building.size();
 
         let id = commands
             .spawn((
-                Sprite::from_image(assets.image(format!(
-                    "{}-{}",
-                    player.color.to_name(),
-                    msg.building.to_name()
-                ))),
+                Sprite {
+                    image: assets.image(format!(
+                        "{}-{}",
+                        player.color.to_name(),
+                        msg.building.to_name()
+                    )),
+                    custom_size: Some(size),
+                    ..default()
+                },
                 Transform {
                     translation: msg.position.extend(BUILDINGS_Z),
                     scale: Vec3::splat(BUILDING_SCALE),
@@ -81,16 +84,16 @@ pub fn spawn_building_message(
                 children![(
                     Sprite {
                         color: Color::from(BLACK),
-                        custom_size: Some(2. * HEALTH_SIZE),
+                        custom_size: Some(Vec2::new(0.5 * size.x, 15.)),
                         ..default()
                     },
-                    Transform::from_xyz(0., 2. * HEALTH_SIZE.x * 0.75, 0.1),
+                    Transform::from_xyz(0., msg.building.size().x * 0.4, 0.1),
                     Visibility::Hidden,
                     HealthWrapperCmp,
                     children![(
                         Sprite {
                             color: Color::from(LIME),
-                            custom_size: Some(2. * INNER_HEALTH_SIZE),
+                            custom_size: Some(Vec2::new(0.49 * size.x, 13.)),
                             ..default()
                         },
                         Transform::from_xyz(0., 0., 0.2),
@@ -169,7 +172,7 @@ pub fn spawn_unit_message(
                 children![(
                     Sprite {
                         color: Color::from(BLACK),
-                        custom_size: Some(HEALTH_SIZE),
+                        custom_size: Some(4. + HEALTH_SIZE),
                         ..default()
                     },
                     Transform::from_xyz(0., HEALTH_SIZE.x * 0.75, 0.1),
@@ -178,7 +181,7 @@ pub fn spawn_unit_message(
                     children![(
                         Sprite {
                             color: Color::from(LIME),
-                            custom_size: Some(INNER_HEALTH_SIZE),
+                            custom_size: Some(HEALTH_SIZE),
                             ..default()
                         },
                         Transform::from_xyz(0., 0., 0.2),

@@ -1,4 +1,4 @@
-use crate::core::constants::{ARROW_SPEED, CAPPED_DELTA_SECS_SPEED, RADIUS, UNITS_Z};
+use crate::core::constants::{BUILDINGS_Z, CAPPED_DELTA_SECS_SPEED, RADIUS};
 use crate::core::map::map::Map;
 use crate::core::mechanics::combat::{ApplyDamageMsg, Arrow};
 use crate::core::mechanics::spawn::DespawnMsg;
@@ -68,7 +68,7 @@ fn move_unit(
                 let dist = delta.length();
 
                 // Skip if self or too far to interact
-                if unit_e == *other_e || dist > unit.name.range() * RADIUS {
+                if unit_e == *other_e || dist > unit.range() * RADIUS {
                     continue;
                 }
 
@@ -80,9 +80,7 @@ fn move_unit(
                         Action::Heal(*other_e)
                     },
                     (u, false) if u == UnitName::Archer => Action::Attack(*other_e),
-                    (u, false) if u != UnitName::Priest && dist <= 2. * RADIUS => {
-                        Action::Attack(*other_e)
-                    },
+                    (u, false) if u.can_attack() && dist <= 2. * RADIUS => Action::Attack(*other_e),
                     _ => continue,
                 };
 
@@ -94,7 +92,10 @@ fn move_unit(
             for (building_e, building_pos, building) in buildings {
                 let dist = unit_t.translation.distance(*building_pos);
 
-                if building.color != unit.color && dist <= unit.name.range() * RADIUS {
+                if unit.name.can_attack()
+                    && building.color != unit.color
+                    && dist <= (unit.range() * RADIUS).max(2. * RADIUS)
+                {
                     unit.action = Action::Attack(*building_e);
                     return;
                 }
@@ -147,8 +148,8 @@ fn move_arrow(
     time: &Time,
 ) {
     // Resolve arrow hitting an enemy
-    let speed = ARROW_SPEED * settings.speed * time.delta_secs().min(CAPPED_DELTA_SECS_SPEED);
-    arrow.traveled += speed;
+    arrow.traveled +=
+        Arrow::SPEED * settings.speed * time.delta_secs().min(CAPPED_DELTA_SECS_SPEED);
 
     // Calculate progress (0.0 to 1.0)
     let progress = (arrow.traveled / arrow.total_distance).min(1.0);
@@ -162,8 +163,8 @@ fn move_arrow(
                 max: Vec2::new(image.width() as f32 * 0.65, image.height() as f32),
             });
 
-            // Place ground arrows behind units
-            arrow_t.translation.z = UNITS_Z - 0.1;
+            // Place ground arrows behind units and buildings
+            arrow_t.translation.z = BUILDINGS_Z - 0.1;
         }
 
         arrow.despawn_timer.tick(scale_duration(time.delta(), settings.speed));

@@ -99,7 +99,7 @@ impl UnitName {
     pub fn spawn_duration(&self) -> u64 {
         match self {
             UnitName::Warrior => 2000,
-            UnitName::Lancer => 2000,
+            UnitName::Lancer => 1500,
             UnitName::Archer => 3000,
             UnitName::Priest => 4000,
         }
@@ -107,7 +107,7 @@ impl UnitName {
 
     pub fn health(&self) -> f32 {
         match self {
-            UnitName::Warrior => 150.,
+            UnitName::Warrior => 130.,
             UnitName::Lancer => 100.,
             UnitName::Archer => 60.,
             UnitName::Priest => 40.,

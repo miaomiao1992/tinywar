@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::window::SystemCursorIcon;
 use bevy_kira_audio::prelude::*;
 
 use crate::core::assets::WorldAssets;
 use crate::core::constants::{NORMAL_BUTTON_COLOR, PRESSED_BUTTON_COLOR};
 use crate::core::menu::settings::SettingsBtn;
-use crate::core::settings::Settings;
-use crate::core::states::AudioState;
+use crate::core::settings::{AudioState, Settings};
+use crate::core::utils::cursor;
 
 #[derive(Resource, Default)]
 pub struct PlayingAudio(pub HashMap<&'static str, Handle<AudioInstance>>);
@@ -32,6 +33,11 @@ impl PlayAudioMsg {
             volume: PlayingAudio::DEFAULT_VOLUME,
             is_background: false,
         }
+    }
+
+    pub fn volume(mut self, volume: f32) -> Self {
+        self.volume = volume;
+        self
     }
 
     pub fn background(mut self) -> Self {
@@ -88,6 +94,8 @@ pub fn setup_audio(mut commands: Commands, assets: Local<WorldAssets>) {
             },
             ZIndex(5),
         ))
+        .observe(cursor::<Over>(SystemCursorIcon::Pointer))
+        .observe(cursor::<Out>(SystemCursorIcon::Default))
         .with_children(|parent| {
             parent.spawn((ImageNode::new(assets.image("sound")), MusicBtnCmp)).observe(
                 |_: On<Pointer<Click>>, mut commands: Commands| {
@@ -104,8 +112,6 @@ pub fn update_audio(
     mut btn_q: Query<&mut ImageNode, With<MusicBtnCmp>>,
     mut settings_btn: Query<(&mut BackgroundColor, &SettingsBtn)>,
     mut settings: ResMut<Settings>,
-    audio_state: Res<State<AudioState>>,
-    mut next_audio_state: ResMut<NextState<AudioState>>,
     mut play_audio_msg: MessageWriter<PlayAudioMsg>,
     mut pause_audio_msg: MessageWriter<PauseAudioMsg>,
     mut stop_audio_msg: MessageWriter<StopAudioMsg>,
@@ -113,7 +119,7 @@ pub fn update_audio(
     assets: Local<WorldAssets>,
 ) {
     for msg in change_audio_msg.read() {
-        settings.audio = msg.0.unwrap_or(match *audio_state.get() {
+        settings.audio = msg.0.unwrap_or(match settings.audio {
             AudioState::Mute => AudioState::Sound,
             AudioState::Sound => AudioState::Music,
             AudioState::Music => AudioState::Mute,
@@ -123,18 +129,15 @@ pub fn update_audio(
             node.image = match settings.audio {
                 AudioState::Mute => {
                     mute_audio_msg.write(MuteAudioMsg);
-                    next_audio_state.set(AudioState::Mute);
                     assets.image("mute")
                 },
                 AudioState::Sound => {
                     pause_audio_msg.write(PauseAudioMsg::new("music"));
                     stop_audio_msg.write(StopAudioMsg::new("drums"));
-                    next_audio_state.set(AudioState::Sound);
                     assets.image("sound")
                 },
                 AudioState::Music => {
-                    play_audio_msg.write(PlayAudioMsg::new("music").background());
-                    next_audio_state.set(AudioState::Music);
+                    play_audio_msg.write(PlayAudioMsg::new("music").volume(-40.).background());
                     assets.image("music")
                 },
             };
@@ -170,14 +173,14 @@ pub fn play_music(mut play_audio_msg: MessageWriter<PlayAudioMsg>) {
 
 pub fn play_audio(
     mut play_audio_msg: MessageReader<PlayAudioMsg>,
-    audio_state: Res<State<AudioState>>,
     mut playing_audio: ResMut<PlayingAudio>,
     mut audio_instances: ResMut<Assets<AudioInstance>>,
+    settings: Res<Settings>,
     audio: Res<Audio>,
     assets: Local<WorldAssets>,
 ) {
     for msg in play_audio_msg.read() {
-        if *audio_state.get() != AudioState::Mute {
+        if settings.audio != AudioState::Mute {
             let mut new_sound = false;
 
             if let Some(handle) = playing_audio.0.get(msg.name) {
@@ -186,7 +189,7 @@ pub fn play_audio(
                         instance.state(),
                         PlaybackState::Paused { .. } | PlaybackState::Pausing { .. }
                     ) {
-                        if !msg.is_background || *audio_state.get() != AudioState::Sound {
+                        if !msg.is_background || settings.audio != AudioState::Sound {
                             instance.resume(PlayingAudio::TWEEN);
                         }
                     } else if !msg.is_background
@@ -201,7 +204,7 @@ pub fn play_audio(
                     }
                 }
             } else if msg.is_background {
-                if *audio_state.get() != AudioState::Sound {
+                if settings.audio != AudioState::Sound {
                     playing_audio.0.insert(
                         msg.name,
                         audio

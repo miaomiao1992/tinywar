@@ -1,5 +1,6 @@
 use crate::core::audio::PlayAudioMsg;
 use crate::core::constants::{MAX_GAME_SPEED, MIN_GAME_SPEED};
+use crate::core::map::ui::systems::UiCmp;
 use crate::core::mechanics::queue::QueueUnitMsg;
 use crate::core::menu::systems::StartNewGameMsg;
 use crate::core::menu::utils::TextSize;
@@ -10,13 +11,14 @@ use crate::core::units::units::UnitName;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 use bevy_renet::renet::RenetServer;
+use bevy_tweening::{PlaybackState, TweenAnim};
 use strum::IntoEnumIterator;
 
-pub fn on_resize_system(
-    mut resize_reader: MessageReader<WindowResized>,
+pub fn on_resize_message(
+    mut resize_msg: MessageReader<WindowResized>,
     mut text: Query<(&mut TextFont, &TextSize)>,
 ) {
-    for window in resize_reader.read() {
+    for window in resize_msg.read() {
         for (mut text, size) in text.iter_mut() {
             text.font_size = size.0 * window.height / 460.
         }
@@ -61,6 +63,9 @@ pub fn check_keys_menu(
                 start_new_game_msg.write(StartNewGameMsg);
             },
             AppState::Settings => next_app_state.set(AppState::MainMenu),
+            AppState::Game if *game_state.get() == GameState::EndGame => {
+                next_app_state.set(AppState::MainMenu)
+            },
             _ => (),
         }
     }
@@ -142,4 +147,19 @@ pub fn check_keys_playing_game(
             play_audio_msg.write(PlayAudioMsg::new("button"));
         }
     }
+}
+
+pub fn update_animations(
+    mut anim_q: Query<&mut TweenAnim, Without<UiCmp>>,
+    settings: Res<Settings>,
+    game_state: Res<State<GameState>>,
+) {
+    // Play/pause tween animations
+    anim_q.iter_mut().for_each(|mut t| match game_state.get() {
+        GameState::Playing => {
+            t.playback_state = PlaybackState::Playing;
+            t.speed = settings.speed as f64;
+        },
+        _ => t.playback_state = PlaybackState::Paused,
+    });
 }

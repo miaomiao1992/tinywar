@@ -177,7 +177,7 @@ pub fn apply_damage_message(
                                     },
                                     TweenAnim::new(
                                         Delay::new(Duration::from_millis(
-                                            rng.random_range(0..1000),
+                                            rng.random_range(1..1000),
                                         ))
                                         .then(Tween::new(
                                             EaseFunction::Linear,

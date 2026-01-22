@@ -6,8 +6,7 @@ use crate::core::assets::WorldAssets;
 use crate::core::audio::ChangeAudioMsg;
 use crate::core::constants::*;
 use crate::core::menu::utils::add_text;
-use crate::core::settings::{PlayerColor, Settings};
-use crate::core::states::AudioState;
+use crate::core::settings::{AudioState, PlayerColor, Settings};
 use crate::utils::NameFromEnum;
 
 #[derive(Component, Clone, Debug, PartialEq)]

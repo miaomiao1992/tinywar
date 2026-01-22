@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::network::{Host, ServerSendMsg};
 use crate::core::settings::Settings;
-use crate::core::states::{AppState, AudioState};
+use crate::core::states::AppState;
 use crate::TITLE;
 
 #[derive(Default)]
@@ -60,7 +60,6 @@ pub fn load_game(
     mut load_game_msg: MessageReader<LoadGameMsg>,
     server: Option<Res<RenetServer>>,
     mut next_app_state: ResMut<NextState<AppState>>,
-    mut next_audio_state: ResMut<NextState<AudioState>>,
     mut server_send_msg: MessageWriter<ServerSendMsg>,
 ) {
     for _ in load_game_msg.read() {

@@ -95,6 +95,7 @@ impl FromWorld for WorldAssets {
             ("victory", assets.load("images/bg/victory.png")),
             ("defeat", assets.load("images/bg/defeat.png")),
             // Ui
+            ("banner", assets.load("images/ui/banner.png")),
             ("swords1", assets.load("images/ui/swords1.png")),
             ("swords2", assets.load("images/ui/swords2.png")),
             ("swords3", assets.load("images/ui/swords3.png")),

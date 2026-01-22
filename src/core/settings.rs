@@ -1,4 +1,3 @@
-use crate::core::states::AudioState;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -35,7 +34,15 @@ impl PlayerColor {
     }
 }
 
-#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+pub enum AudioState {
+    Mute,
+    #[default]
+    Sound,
+    Music,
+}
+
+#[derive(Resource, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub color: PlayerColor,
     pub enemy_color: PlayerColor,

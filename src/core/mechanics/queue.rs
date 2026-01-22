@@ -37,8 +37,12 @@ pub fn queue_message(
     for msg in queue_unit_msg.read() {
         let player = players.get_mut(msg.id);
 
-        if player.queue.len() < MAX_QUEUE_LENGTH && (!msg.automatic || player.queue.is_empty()) {
-            player.queue.push_back(QueuedUnit::new(msg.unit, msg.unit.spawn_duration()));
+        if player.queue.len() < MAX_QUEUE_LENGTH {
+            // There could be race conditions between automatic pushes and queue draining
+            // Add extra check to avoid queuing 2 units when in automatic mode
+            if !msg.automatic || player.queue.is_empty() {
+                player.queue.push_back(QueuedUnit::new(msg.unit, msg.unit.spawn_duration()));
+            }
         } else if player.is_human() {
             play_audio_msg.write(PlayAudioMsg::new("error"));
         }

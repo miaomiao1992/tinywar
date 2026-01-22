@@ -260,7 +260,7 @@ pub fn update_buildings(
                         Transform {
                             translation: Vec3::new(
                                 rng.random_range(-0.4 * b_size.x..0.4 * b_size.x),
-                                rng.random_range(-0.3 * b_size.y..0.3 * b_size.y),
+                                rng.random_range(-0.2 * b_size.y..0.2 * b_size.y),
                                 0.1,
                             ),
                             scale: Vec3::splat(0.7 + damage + rng.random_range(0.0..0.2)),

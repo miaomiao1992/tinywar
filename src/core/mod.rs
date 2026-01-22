@@ -31,9 +31,9 @@ use crate::core::network::*;
 use crate::core::persistence::{load_game, save_game};
 use crate::core::persistence::{LoadGameMsg, SaveGameMsg};
 use crate::core::settings::Settings;
-use crate::core::states::{AppState, AudioState, GameState};
+use crate::core::states::{AppState, GameState};
 use crate::core::systems::{
-    check_keys_game, check_keys_menu, check_keys_playing_game, on_resize_system,
+    check_keys_game, check_keys_menu, check_keys_playing_game, on_resize_message, update_animations,
 };
 use crate::core::units::systems::{update_buildings, update_units};
 use crate::core::utils::despawn;
@@ -71,7 +71,6 @@ impl Plugin for GamePlugin {
             // States
             .init_state::<AppState>()
             .init_state::<GameState>()
-            .init_state::<AudioState>()
             // Messages
             .add_message::<PlayAudioMsg>()
             .add_message::<PauseAudioMsg>()
@@ -164,10 +163,10 @@ impl Plugin for GamePlugin {
                     check_keys_playing_game.in_set(InPlayingOrPausedSet),
                 ),
             )
-            .add_systems(PostUpdate, on_resize_system)
+            .add_systems(PostUpdate, on_resize_message)
             // In-game states
             .add_systems(OnEnter(AppState::Game), (draw_map, draw_ui))
-            .add_systems(Update, update_ui.in_set(InGameSet))
+            .add_systems(Update, (update_ui, update_animations).in_set(InGameSet))
             .add_systems(Update, queue_message.in_set(InPlayingOrPausedSet))
             .add_systems(
                 Update,

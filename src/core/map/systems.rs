@@ -1,15 +1,14 @@
 use crate::core::assets::WorldAssets;
 use crate::core::audio::PlayAudioMsg;
 use crate::core::camera::MainCamera;
-use crate::core::constants::{FRAME_RATE, MAP_Z, MAX_ZOOM};
+use crate::core::constants::{MAP_Z, MAX_ZOOM};
 use crate::core::map::ui::systems::UiCmp;
-use crate::core::map::utils::{SpriteFrameLens, UiScaleLens};
+use crate::core::map::utils::UiScaleLens;
 use crate::core::player::Players;
 use crate::core::units::buildings::Building;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TilemapAnchor};
-use bevy_tweening::lens::UiPositionLens;
-use bevy_tweening::{Delay, RepeatCount, Tween, TweenAnim};
+use bevy_tweening::{RepeatCount, RepeatStrategy, Tween, TweenAnim};
 use std::time::Duration;
 
 #[derive(Component)]
@@ -55,20 +54,14 @@ pub fn setup_end_game(
         TweenAnim::new(
             Tween::new(
                 EaseFunction::QuadraticInOut,
-                Duration::from_secs(2),
+                Duration::from_secs(6),
                 UiScaleLens {
                     start: Vec2::ZERO,
                     end: Vec2::splat(0.6),
                 },
-            ), // .then(Delay::new(Duration::from_secs(2)))
-               // .then(Tween::new(
-               //     EaseFunction::QuadraticInOut,
-               //     Duration::from_secs(2),
-               //     UiPositionLens {
-               //         start: UiRect::ZERO,
-               //         end: UiRect::top(Val::Percent(5.)),
-               //     },
-               // )),
+            )
+            .with_repeat_count(RepeatCount::Finite(2))
+            .with_repeat_strategy(RepeatStrategy::MirroredRepeat),
         ),
         Pickable::IGNORE,
         UiCmp,

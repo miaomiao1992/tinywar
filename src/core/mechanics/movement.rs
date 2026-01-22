@@ -60,8 +60,8 @@ fn move_unit(
     let target_tile = next_tile_on_path(&unit_t.translation, &path);
     let target_pos = Map::tile_to_world(&target_tile).extend(unit_t.translation.z);
 
-    // Check units in this tile + two adjacent tiles
-    for tile in get_tiles_at_distance(&tile, 2) {
+    // Only check units in the surrounding
+    for tile in get_tiles_at_distance(&tile, 4) {
         if let Some(units) = unit_pos.get(&tile) {
             for (other_e, other_pos, other) in units {
                 let delta = unit_t.translation - other_pos;

@@ -7,12 +7,11 @@ use crate::core::menu::utils::add_text;
 use crate::core::player::{Players, Side};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::GameState;
-use crate::core::units::units::{Unit, UnitName};
+use crate::core::units::units::{Action, Unit, UnitName};
 use crate::core::utils::cursor;
 use crate::utils::NameFromEnum;
 use bevy::prelude::*;
 use bevy::window::SystemCursorIcon;
-use bevy_tweening::{PlaybackState, TweenAnim};
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
@@ -27,6 +26,9 @@ pub struct TextAdvanceBannerCmp;
 
 #[derive(Component)]
 pub struct DirectionCmp;
+
+#[derive(Component)]
+pub struct HoverBoxCmp;
 
 #[derive(Component)]
 pub struct ShopButtonCmp(pub UnitName);
@@ -222,59 +224,152 @@ pub fn draw_ui(
                 .with_children(|parent| {
                     for unit in UnitName::iter() {
                         parent.spawn((Node {
-                            width: Val::Percent(100.),
-                            aspect_ratio: Some(1.),
-                            ..default()
-                        },
-                        ImageNode::new(assets.image(format!(
-                            "{}-{}",
-                            players.me.color.to_name(),
-                            unit.to_name()
-                        ))),
-                        ShopButtonCmp(unit),
-                        children![
-                            (
+                                width: Val::Percent(100.),
+                                aspect_ratio: Some(1.),
+                                ..default()
+                            },
+                            ImageNode::new(assets.image(format!(
+                                "{}-{}",
+                                players.me.color.to_name(),
+                                unit.to_name()
+                            ))),
+                            ShopButtonCmp(unit),
+                            children![
+                                (
+                                    Node {
+                                        top: Val::Percent(15.),
+                                        left: Val::Percent(70.),
+                                        position_type: PositionType::Absolute,
+                                        ..default()
+                                    },
+                                    add_text("0", "bold", 12., &assets, &window),
+                                    ShopLabelCmp(unit),
+                                ),
+                                (
+                                    Node {
+                                        bottom: Val::Percent(15.),
+                                        left: Val::Percent(70.),
+                                        position_type: PositionType::Absolute,
+                                        ..default()
+                                    },
+                                    add_text(
+                                        unit.key().to_name().chars().last().unwrap().to_string(),
+                                        "bold",
+                                        12.,
+                                        &assets,
+                                        &window,
+                                    )
+                                ),
+                            ],
+                        ))
+                        .with_children(|parent| {
+                            // Spawn hover box
+                            parent.spawn((
                                 Node {
-                                    top: Val::Percent(15.),
-                                    left: Val::Percent(70.),
+                                    top: Val::Percent(-40.),
+                                    left: Val::Percent(80.),
+                                    width: Val::Percent(600.),
+                                    height: Val::Percent(550.),
                                     position_type: PositionType::Absolute,
+                                    flex_direction: FlexDirection::Column,
+                                    padding: UiRect::all(Val::Percent(70.)),
                                     ..default()
                                 },
-                                add_text("0", "bold", 12., &assets, &window),
-                                ShopLabelCmp(unit),
-                            ),
-                            (
-                                Node {
-                                    bottom: Val::Percent(15.),
-                                    left: Val::Percent(70.),
-                                    position_type: PositionType::Absolute,
-                                    ..default()
-                                },
-                                add_text(
-                                    unit.key().to_name().chars().last().unwrap().to_string(),
-                                    "bold",
-                                    12.,
-                                    &assets,
-                                    &window,
-                                )
-                            ),
-                        ],
-                    ))
-                    .observe(cursor::<Over>(SystemCursorIcon::Pointer))
-                    .observe(cursor::<Out>(SystemCursorIcon::Default))
-                    .observe(
-                        |event: On<Pointer<Click>>,
-                         btn_q: Query<&ShopButtonCmp>,
-                         players: Res<Players>,
-                         mut queue_unit_msg: MessageWriter<QueueUnitMsg>,
-                         mut play_audio_msg: MessageWriter<PlayAudioMsg>| {
-                            if event.button == PointerButton::Primary {
-                                let unit = btn_q.get(event.entity).unwrap().0;
-                                queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit, false));
-                                play_audio_msg.write(PlayAudioMsg::new("button"));
+                                ImageNode::new(assets.image("banner")),
+                                GlobalZIndex(2), // On top of queue
+                                Visibility::Hidden,
+                                HoverBoxCmp,
+                                ))
+                                .with_children(|parent| {
+                                parent
+                                    .spawn((Node {
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        flex_direction: FlexDirection::Column,
+                                        margin: UiRect::ZERO.with_bottom(Val::Percent(5.)),
+                                        ..default()
+                                    },))
+                                    .with_children(|parent| {
+                                        parent.spawn((
+                                            Node {
+                                                margin: UiRect::ZERO.with_bottom(Val::Percent(2.)),
+                                                ..default()
+                                            },
+                                            TextColor(Color::BLACK),
+                                            add_text(unit.to_title(), "bold", 18., &assets, &window),
+                                        ));
+                                        parent.spawn((
+                                            TextColor(Color::BLACK),
+                                            add_text(unit.description(), "bold", 8., &assets, &window)),
+                                        );
+                                    });
+
+                                parent
+                                    .spawn(Node {
+                                        flex_direction: FlexDirection::Column,
+                                        align_items: AlignItems::FlexStart,
+                                        margin: UiRect::ZERO.with_left(Val::Percent(5.)),
+                                        ..default()
+                                    })
+                                    .with_children(|parent| {
+                                        let attributes = [
+                                            ("Health", unit.health().to_string()),
+                                            (if unit.damage() > 0. {"Damage"} else {"Healing"}, unit.damage().abs().to_string()),
+                                            (if unit.damage() > 0. {"Attack speed"} else {"Healing speed"}, format!("{:.1}", 10. / unit.frames(if unit.damage() > 0. {Action::Attack(Entity::PLACEHOLDER)} else {Action::Heal(Entity::PLACEHOLDER)}) as f32)),
+                                            ("Speed", unit.speed().to_string()),
+                                            ("Range", unit.range().to_string()),
+                                            ("Spawn time", format!("{}s", unit.spawn_duration() / 1000)),
+                                        ];
+
+                                        for (k, v) in attributes.iter() {
+                                            // Skip default values
+                                            parent.spawn((
+                                                Node {
+                                                    margin: UiRect::ZERO.with_bottom(Val::Percent(1.)),
+                                                    ..default()
+                                                },
+                                                TextColor(Color::BLACK),
+                                                add_text(
+                                                    format!("{k}: {}", v),
+                                                    "bold",
+                                                    10.,
+                                                    &assets,
+                                                    &window,
+                                                ),
+                                            ));
+                                        }
+                                    });
+                            });
+                        })
+                        .observe(cursor::<Over>(SystemCursorIcon::Pointer))
+                        .observe(cursor::<Out>(SystemCursorIcon::Default))
+                        .observe(|event: On<Pointer<Over>>, mut box_q: Query<&mut Visibility, With<HoverBoxCmp>>, children_q: Query<&Children>| {
+                            for child in children_q.iter_descendants(event.entity) {
+                                if let Ok(mut v) = box_q.get_mut(child) {
+                                    *v = Visibility::Inherited;
+                                }
                             }
-                        },
-                    );
+                        })
+                        .observe(|event: On<Pointer<Out>>, mut box_q: Query<&mut Visibility, With<HoverBoxCmp>>, children_q: Query<&Children>| {
+                            for child in children_q.iter_descendants(event.entity) {
+                                if let Ok(mut v) = box_q.get_mut(child) {
+                                    *v = Visibility::Hidden;
+                                }
+                            }
+                        })
+                        .observe(
+                            |event: On<Pointer<Click>>,
+                             btn_q: Query<&ShopButtonCmp>,
+                             players: Res<Players>,
+                             mut queue_unit_msg: MessageWriter<QueueUnitMsg>,
+                             mut play_audio_msg: MessageWriter<PlayAudioMsg>| {
+                                if event.button == PointerButton::Primary {
+                                    let unit = btn_q.get(event.entity).unwrap().0;
+                                    queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit, false));
+                                    play_audio_msg.write(PlayAudioMsg::new("button"));
+                                }
+                            },
+                        );
                     }
                 });
         });
@@ -419,8 +514,7 @@ pub fn update_ui(
         &mut Node,
         (With<QueueProgressCmp>, Without<SwordQueueCmp>, Without<AdvanceBannerCmp>),
     >,
-    mut anim_q: Query<&mut TweenAnim>,
-    mut speed_q: Single<
+    mut speed_q: Query<
         &mut Text,
         (With<SpeedCmp>, Without<ShopLabelCmp>, Without<TextAdvanceBannerCmp>),
     >,
@@ -436,10 +530,11 @@ pub fn update_ui(
     for (t, unit) in unit_q.iter() {
         let mut x = t.translation.x;
 
-        let (side, acc, count) = if unit.color == players.me.color {
-            (&players.me.side, &mut me, Some(unit.name))
+        let (side, acc) = if unit.color == players.me.color {
+            *counts.entry(unit.name).or_insert(0) += 1;
+            (&players.me.side, &mut me)
         } else {
-            (&players.enemy.side, &mut enemy, None)
+            (&players.enemy.side, &mut enemy)
         };
 
         x = match side {
@@ -449,10 +544,6 @@ pub fn update_ui(
         };
 
         *acc += (1. / (1. + (-1.5 * x).exp()) - 0.5) * 20.;
-
-        if let Some(name) = count {
-            *counts.entry(name).or_insert(0) += 1;
-        }
     }
 
     let total = me + enemy;
@@ -534,22 +625,15 @@ pub fn update_ui(
         }
     }
 
-    // Play/pause tween animations
-    anim_q.iter_mut().for_each(|mut t| match game_state.get() {
-        GameState::Playing => {
-            t.playback_state = PlaybackState::Playing;
-            t.speed = settings.speed as f64;
-        },
-        _ => t.playback_state = PlaybackState::Paused,
-    });
-
     // Update speed indicator
-    speed_q.as_mut().0 = format!(
-        "{}x{}",
-        settings.speed,
-        match game_state.get() {
-            GameState::Playing => "",
-            _ => " - paused",
-        },
-    );
+    if let Ok(mut text) = speed_q.single_mut() {
+        text.0 = format!(
+            "{}x{}",
+            settings.speed,
+            match game_state.get() {
+                GameState::Playing => "",
+                _ => " - paused",
+            },
+        );
+    }
 }

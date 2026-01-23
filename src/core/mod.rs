@@ -27,7 +27,6 @@ use crate::core::mechanics::spawn::*;
 use crate::core::menu::buttons::MenuCmp;
 use crate::core::menu::systems::*;
 use crate::core::network::*;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::core::persistence::{load_game, save_game};
 use crate::core::persistence::{LoadGameMsg, SaveGameMsg};
 use crate::core::settings::Settings;

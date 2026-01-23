@@ -7,7 +7,6 @@ use bevy::prelude::*;
 use bevy_renet::renet::RenetServer;
 use bincode::config::standard;
 use bincode::serde::{decode_from_slice, encode_to_vec};
-#[cfg(not(target_arch = "wasm32"))]
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 

@@ -17,7 +17,6 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::panic;
 use std::sync::Mutex;
-use winit::window::Icon;
 
 use crate::core::GamePlugin;
 use crate::utils::NameFromEnum;
@@ -93,6 +92,8 @@ fn init_panic_logger() {
 
 #[cfg(target_os = "windows")]
 fn set_window_icon(_: NonSendMarker) {
+    use winit::window::Icon;
+
     let image = image::open("assets/images/icons/favicon.png").unwrap().into_rgba8();
     let (width, height) = image.dimensions();
     let rgba = image.into_raw();

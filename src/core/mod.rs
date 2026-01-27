@@ -30,6 +30,7 @@ use crate::core::mechanics::queue::*;
 use crate::core::mechanics::spawn::*;
 use crate::core::menu::buttons::MenuCmp;
 use crate::core::menu::systems::*;
+use crate::core::persistence::run_autosave;
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, GameState};
 use crate::core::systems::*;
@@ -193,6 +194,7 @@ impl Plugin for GamePlugin {
             )
             .add_systems(PreUpdate, update_population_message.in_set(InGameSet))
             .add_systems(Update, update_game_state.run_if(state_changed::<GameState>))
+            .add_systems(Update, update_player.in_set(InGameSet))
             .add_systems(Update, server_update.run_if(resource_exists::<RenetServer>))
             .add_systems(Update, update_ip.run_if(in_state(AppState::MultiPlayerMenu)))
             .add_systems(
@@ -214,7 +216,15 @@ impl Plugin for GamePlugin {
             .add_message::<LoadGameMsg>()
             .add_systems(
                 Update,
-                (load_game, save_game.run_if(resource_exists::<Host>).in_set(InGameSet)),
+                (
+                    load_game,
+                    (
+                        save_game,
+                        run_autosave.run_if(on_timer(Duration::from_secs(10))).in_set(InPlayingSet),
+                    )
+                        .run_if(resource_exists::<Host>)
+                        .in_set(InGameSet),
+                ),
             );
     }
 }

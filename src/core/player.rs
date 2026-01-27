@@ -145,4 +145,12 @@ impl Players {
             &self.enemy
         }
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Player> {
+        [&self.me, &self.enemy].into_iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Player> {
+        [&mut self.me, &mut self.enemy].into_iter()
+    }
 }

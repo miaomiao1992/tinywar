@@ -2,6 +2,7 @@ use crate::core::constants::{BUILDINGS_Z, UNITS_Z};
 use crate::core::mechanics::combat::Arrow;
 use crate::core::mechanics::spawn::{DespawnMsg, SpawnArrowMsg, SpawnBuildingMsg, SpawnUnitMsg};
 use crate::core::network::{ClientMessage, ClientSendMsg, ServerMessage, ServerSendMsg};
+use crate::core::player::Players;
 use crate::core::settings::Settings;
 use crate::core::states::GameState;
 use crate::core::units::buildings::Building;
@@ -18,10 +19,10 @@ pub struct EntityMap(pub BiMap<Entity, Entity>);
 pub struct Population {
     pub units: HashMap<Entity, (Vec2, bool, Unit)>,
     pub buildings: HashMap<Entity, (Vec2, Building)>,
-    pub arrows: HashMap<Entity, (Vec2, Quat, Option<Rect>, Arrow)>,
+    pub arrows: HashMap<Entity, (Vec3, Quat, Option<Rect>, Arrow)>,
 }
 
-#[derive(Message)]
+#[derive(Message, Deref)]
 pub struct UpdatePopulationMsg(pub Population);
 
 pub fn update_game_state(
@@ -39,12 +40,19 @@ pub fn update_game_state(
     });
 }
 
+pub fn update_player(players: Res<Players>, mut client_send_message: MessageWriter<ClientSendMsg>) {
+    if players.is_changed() {
+        client_send_message.write(ClientSendMsg::new(ClientMessage::Player {
+            direction: players.me.direction,
+        }));
+    }
+}
+
 pub fn server_send_status(
     unit_q: Query<(Entity, &Transform, &Sprite, &Unit)>,
     building_q: Query<(Entity, &Transform, &Building)>,
     arrow_q: Query<(Entity, &Transform, &Sprite, &Arrow)>,
     settings: Res<Settings>,
-    entity_map: Res<EntityMap>,
     mut server_send_message: MessageWriter<ServerSendMsg>,
 ) {
     server_send_message.write(ServerSendMsg {
@@ -53,16 +61,7 @@ pub fn server_send_status(
             population: Population {
                 units: unit_q
                     .iter()
-                    .map(|(e, t, s, u)| {
-                        let mut u = u.clone();
-
-                        // Map actions to the entity on the server
-                        if let Action::Attack(e) = &mut u.action {
-                            *e = *entity_map.get_by_right(e).unwrap_or(e);
-                        }
-
-                        (e, (t.translation.truncate(), s.flip_x, u))
-                    })
+                    .map(|(e, t, s, u)| (e, (t.translation.truncate(), s.flip_x, *u)))
                     .collect(),
                 buildings: building_q
                     .iter()
@@ -70,7 +69,7 @@ pub fn server_send_status(
                     .collect(),
                 arrows: arrow_q
                     .iter()
-                    .map(|(e, t, s, a)| (e, (t.translation.truncate(), t.rotation, s.rect, a.clone())))
+                    .map(|(e, t, s, a)| (e, (t.translation, t.rotation, s.rect, a.clone())))
                     .collect(),
             },
         },
@@ -92,29 +91,31 @@ pub fn update_population_message(
     mut spawn_arrow_msg: MessageWriter<SpawnArrowMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
 ) {
-    if let Some(UpdatePopulationMsg(population)) = update_population_ev.read().last() {
+    if let Some(msg) = update_population_ev.read().last() {
         // Despawn all that are not in the new population
-        for entity in unit_q
-            .iter()
-            .map(|(e, _, _, _)| e)
-            .chain(building_q.iter().map(|(e, _, _)| e))
-            .chain(arrow_q.iter().map(|(e, _, _, _)| e))
-        {
-            if !population
-                .units
-                .contains_key(entity_map.get_by_right(&entity).unwrap_or(&Entity::PLACEHOLDER))
-            {
-                despawn_msg.write(DespawnMsg(entity));
+        let mut check = |iter: Vec<Entity>, map: Vec<&Entity>| {
+            for e in iter {
+                if !map.contains(&entity_map.get_by_right(&e).unwrap_or(&Entity::PLACEHOLDER)) {
+                    despawn_msg.write(DespawnMsg(e));
+                }
             }
-        }
+        };
+
+        check(unit_q.iter().map(|(e, ..)| e).collect(), msg.units.keys().collect());
+        check(building_q.iter().map(|(e, ..)| e).collect(), msg.buildings.keys().collect());
+        check(arrow_q.iter().map(|(e, ..)| e).collect(), msg.arrows.keys().collect());
 
         // Update the current population
-        for (unit_e, (t, s, u)) in &population.units {
+        for (unit_e, (t, s, u)) in &msg.units {
             if let Some(e) = entity_map.get_by_left(unit_e) {
                 if let Ok((_, mut unit_t, mut unit_s, mut unit)) = unit_q.get_mut(*e) {
                     unit_t.translation = t.extend(UNITS_Z);
                     unit_s.flip_x = *s;
                     *unit = *u;
+
+                    if let Action::Attack(e) | Action::Heal(e) = &mut unit.action {
+                        *e = *entity_map.get_by_left(e).unwrap_or(e);
+                    }
                 }
             } else {
                 spawn_unit_msg.write(SpawnUnitMsg {
@@ -127,7 +128,7 @@ pub fn update_population_message(
             }
         }
 
-        for (building_e, (t, b)) in &population.buildings {
+        for (building_e, (t, b)) in &msg.buildings {
             if let Some(e) = entity_map.get_by_left(building_e) {
                 if let Ok((_, mut building_t, mut building)) = building_q.get_mut(*e) {
                     building_t.translation = t.extend(BUILDINGS_Z);
@@ -145,10 +146,10 @@ pub fn update_population_message(
             }
         }
 
-        for (arrow_e, (t, r, s, a)) in &population.arrows {
+        for (arrow_e, (t, r, s, a)) in &msg.arrows {
             if let Some(e) = entity_map.get_by_left(arrow_e) {
                 if let Ok((_, mut arrow_t, mut arrow_s, mut arrow)) = arrow_q.get_mut(*e) {
-                    arrow_t.translation = t.extend(BUILDINGS_Z);
+                    arrow_t.translation = *t;
                     arrow_t.rotation = *r;
                     arrow_s.rect = *s;
                     *arrow = a.clone();

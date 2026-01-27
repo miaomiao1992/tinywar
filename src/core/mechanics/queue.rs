@@ -60,38 +60,44 @@ pub fn queue_resolve(
     settings: Res<Settings>,
     time: Res<Time>,
 ) {
-    let player = &mut players.me;
-
-    let mut spawn = None;
-    if let Some(queue) = player.queue.front_mut() {
-        queue.timer.tick(scale_duration(time.delta(), settings.speed));
-
-        if queue.timer.just_finished() {
-            spawn = Some(queue.unit);
+    let me = players.me.id;
+    for player in players.iter_mut() {
+        // Each player resolves its own queue
+        if player.is_human() && player.id != me {
+            continue;
         }
-    } else if player.is_human() {
-        queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default, true));
-    } else {
-        // Spawn units randomly with inverse probability to their spawning time
-        let units: Vec<UnitName> = UnitName::iter().collect();
 
-        let weights: Vec<f64> = units.iter().map(|u| 1.0 / u.spawn_duration() as f64).collect();
+        let mut spawn = None;
+        if let Some(queue) = player.queue.front_mut() {
+            queue.timer.tick(scale_duration(time.delta(), settings.speed));
 
-        let dist = WeightedIndex::new(&weights).unwrap();
-        let unit = units[dist.sample(&mut rng())];
-
-        queue_unit_msg.write(QueueUnitMsg::new(player.id, unit, true));
-    }
-
-    if let Some(unit) = spawn {
-        if host.is_some() {
-            spawn_unit_msg.write(SpawnUnitMsg::new(player.color, unit));
+            if queue.timer.just_finished() {
+                spawn = Some(queue.unit);
+            }
+        } else if player.is_human() {
+            queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default, true));
         } else {
-            #[cfg(not(target_arch = "wasm32"))]
-            client_send_msg.write(ClientSendMsg::new(ClientMessage::SpawnUnit(unit)));
+            // Spawn units randomly with inverse probability to their spawning time
+            let units: Vec<UnitName> = UnitName::iter().collect();
+
+            let weights: Vec<f64> = units.iter().map(|u| 1.0 / u.spawn_duration() as f64).collect();
+
+            let dist = WeightedIndex::new(&weights).unwrap();
+            let unit = units[dist.sample(&mut rng())];
+
+            queue_unit_msg.write(QueueUnitMsg::new(player.id, unit, true));
         }
 
-        player.queue.pop_front();
-        player.queue_default = unit;
+        if let Some(unit) = spawn {
+            if host.is_some() {
+                spawn_unit_msg.write(SpawnUnitMsg::new(player.color, unit));
+            } else {
+                #[cfg(not(target_arch = "wasm32"))]
+                client_send_msg.write(ClientSendMsg::new(ClientMessage::SpawnUnit(unit)));
+            }
+
+            player.queue.pop_front();
+            player.queue_default = unit;
+        }
     }
 }

@@ -4,7 +4,7 @@ use crate::core::map::ui::systems::UiCmp;
 use crate::core::mechanics::queue::QueueUnitMsg;
 use crate::core::menu::systems::{Host, StartNewGameMsg};
 use crate::core::menu::utils::TextSize;
-use crate::core::player::{PlayerDirection, Players};
+use crate::core::player::{PlayerDirection, Players, Side};
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, GameState};
 use crate::core::units::units::UnitName;
@@ -107,12 +107,24 @@ pub fn check_keys_playing_game(
     mut pressed: Local<bool>,
 ) {
     // Change unit direction
+    let mid_key = if players.me.side == Side::Left {
+        KeyCode::ArrowRight
+    } else {
+        KeyCode::ArrowLeft
+    };
+
+    let any_key = if players.me.side == Side::Left {
+        KeyCode::ArrowLeft
+    } else {
+        KeyCode::ArrowRight
+    };
+
     if !keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
         let mut new_direction = None;
 
-        if keyboard.just_released(KeyCode::ArrowLeft) {
+        if keyboard.just_released(any_key) {
             new_direction = Some(PlayerDirection::Any);
-        } else if keyboard.just_released(KeyCode::ArrowRight) {
+        } else if keyboard.just_released(mid_key) {
             new_direction = Some(
                 match (keyboard.pressed(KeyCode::ArrowUp), keyboard.pressed(KeyCode::ArrowDown)) {
                     (true, _) => PlayerDirection::TopMid,
@@ -121,13 +133,13 @@ pub fn check_keys_playing_game(
                 },
             );
         } else if keyboard.just_released(KeyCode::ArrowUp) {
-            new_direction = Some(if keyboard.pressed(KeyCode::ArrowRight) {
+            new_direction = Some(if keyboard.pressed(mid_key) {
                 PlayerDirection::TopMid
             } else {
                 PlayerDirection::Top
             });
         } else if keyboard.just_released(KeyCode::ArrowDown) {
-            new_direction = Some(if keyboard.pressed(KeyCode::ArrowRight) {
+            new_direction = Some(if keyboard.pressed(mid_key) {
                 PlayerDirection::MidBot
             } else {
                 PlayerDirection::Bot
@@ -139,8 +151,7 @@ pub fn check_keys_playing_game(
                 play_audio_msg.write(PlayAudioMsg::new("click"));
                 players.me.direction = direction;
             }
-        } else if !keyboard.any_pressed([KeyCode::ArrowUp, KeyCode::ArrowRight, KeyCode::ArrowDown])
-        {
+        } else if !keyboard.any_pressed([KeyCode::ArrowUp, mid_key, KeyCode::ArrowDown]) {
             *pressed = false;
         }
     }

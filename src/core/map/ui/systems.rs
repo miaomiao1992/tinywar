@@ -144,6 +144,7 @@ pub fn draw_ui(
             },
             ImageNode {
                 image: assets.image(players.me.direction.image()),
+                flip_x: players.me.side == Side::Right,
                 flip_y: players.me.direction.flip_y(),
                 ..default()
             },

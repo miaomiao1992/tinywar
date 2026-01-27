@@ -3,8 +3,8 @@ use std::time::SystemTime;
 
 use crate::core::mechanics::spawn::SpawnUnitMsg;
 use crate::core::menu::buttons::LobbyTextCmp;
-use crate::core::multiplayer::{Population, UpdatePopulationMsg};
-use crate::core::player::{Player, Players, Side};
+use crate::core::multiplayer::{EntityMap, Population, UpdatePopulationMsg};
+use crate::core::player::{Player, PlayerDirection, Players, Side};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::{AppState, GameState};
 use crate::core::units::units::UnitName;
@@ -56,15 +56,9 @@ impl ClientSendMsg {
 
 #[derive(Serialize, Deserialize)]
 pub enum ServerMessage {
-    LoadGame {
-        turn: usize,
-        p_colonizable: usize,
-    },
     NPlayers(usize),
     StartGame {
-        id: ClientId,
-        color: PlayerColor,
-        enemy_id: ClientId,
+        player: Player,
         enemy_color: PlayerColor,
     },
     State(GameState),
@@ -89,6 +83,9 @@ impl ServerMessage {
 pub enum ClientMessage {
     ShareColor(PlayerColor),
     State(GameState),
+    Player {
+        direction: PlayerDirection,
+    },
     SpawnUnit(UnitName),
 }
 
@@ -212,6 +209,7 @@ pub fn server_send_message(
 pub fn server_receive_message(
     mut server: ResMut<RenetServer>,
     mut settings: ResMut<Settings>,
+    mut players: Option<ResMut<Players>>,
     mut spawn_unit_msg: MessageWriter<SpawnUnitMsg>,
     game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
@@ -230,6 +228,13 @@ pub fn server_receive_message(
                     GameState::Playing => next_game_state.set(GameState::Playing),
                     GameState::EndGame => next_game_state.set(GameState::EndGame),
                     _ => (),
+                },
+                ClientMessage::Player {
+                    direction,
+                } => {
+                    if let Some(players) = &mut players {
+                        players.enemy.direction = direction;
+                    }
                 },
                 ClientMessage::SpawnUnit(unit) => {
                     spawn_unit_msg.write(SpawnUnitMsg::new(settings.enemy_color, unit));
@@ -272,25 +277,18 @@ pub fn client_receive_message(
                     .write(ClientSendMsg::new(ClientMessage::ShareColor(settings.color)));
             },
             ServerMessage::StartGame {
-                id,
-                color,
-                enemy_id,
+                player,
                 enemy_color,
             } => {
-                settings.color = color;
+                settings.color = player.color;
                 settings.enemy_color = enemy_color;
 
+                commands.insert_resource(EntityMap::default());
                 commands.insert_resource(Players {
-                    me: Player::new(id, color, Side::Right),
-                    enemy: Player::new(enemy_id, enemy_color, Side::Left),
+                    me: player,
+                    enemy: Player::new(0, enemy_color, Side::Left),
                 });
                 next_game_state.set(GameState::default());
-                next_app_state.set(AppState::Game);
-            },
-            ServerMessage::LoadGame {
-                turn,
-                p_colonizable,
-            } => {
                 next_app_state.set(AppState::Game);
             },
             ServerMessage::State(state) => match state {

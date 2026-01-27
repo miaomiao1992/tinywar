@@ -139,8 +139,8 @@ pub fn setup_menu(
                                     parent,
                                     "Color",
                                     vec![
-                                        SettingsBtn::Blue,
                                         SettingsBtn::Black,
+                                        SettingsBtn::Blue,
                                         SettingsBtn::Purple,
                                         SettingsBtn::Red,
                                         SettingsBtn::Yellow,
@@ -381,9 +381,7 @@ pub fn start_new_game_message(
 
                 server_send_msg.write(ServerSendMsg::new(
                     ServerMessage::StartGame {
-                        id: enemy_id,
-                        color: enemy_color,
-                        enemy_id: 0,
+                        player: Player::new(enemy_id, enemy_color, Side::Right),
                         enemy_color: settings.color,
                     },
                     Some(enemy_id),

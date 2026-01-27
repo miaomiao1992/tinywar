@@ -5,7 +5,7 @@ use crate::core::map::map::Map;
 use crate::core::mechanics::combat::{ApplyDamageMsg, Arrow};
 use crate::core::mechanics::spawn::DespawnMsg;
 use crate::core::player::Players;
-use crate::core::settings::Settings;
+use crate::core::settings::{PlayerColor, Settings};
 use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit, UnitName};
 use crate::utils::scale_duration;
@@ -26,7 +26,7 @@ fn get_target_tile(tile: &TilePos, path: &[TilePos]) -> TilePos {
         .iter()
         .enumerate()
         .min_by_key(|(_, t)| tile.x.abs_diff(t.x) + tile.y.abs_diff(t.y))
-        .map(|(i, _)| path.get(i + 1).unwrap_or_else(|| return path.last().unwrap()))
+        .map(|(i, _)| path.get(i + 1).unwrap_or(path.last().unwrap()))
         .unwrap();
 
     Map::find_path(tile, closest)[1]
@@ -211,7 +211,7 @@ fn move_arrow(
     arrow_s: &mut Sprite,
     apply_damage_msg: &mut MessageWriter<ApplyDamageMsg>,
     despawn_msg: &mut MessageWriter<DespawnMsg>,
-    positions: &HashMap<TilePos, Vec<(Entity, Vec3, Unit)>>,
+    positions: &HashMap<TilePos, Vec<(Entity, PlayerColor, Vec3)>>,
     settings: &Settings,
     images: &Assets<Image>,
     time: &Time,
@@ -257,8 +257,8 @@ fn move_arrow(
     let tile = Map::world_to_tile(&arrow_t.translation);
     for tile in get_tiles_at_distance(&tile, 2) {
         if let Some(units) = positions.get(&tile) {
-            for (other_e, other_pos, other_unit) in units {
-                if other_unit.color != arrow.color
+            for (other_e, other_color, other_pos) in units {
+                if *other_color != arrow.color
                     && arrow_t.translation.distance(*other_pos) < RADIUS * 0.4
                 {
                     apply_damage_msg.write(ApplyDamageMsg::new(*other_e, arrow.damage));
@@ -312,6 +312,17 @@ pub fn apply_movement(
             acc
         });
 
+    let any_pos: HashMap<TilePos, Vec<(Entity, PlayerColor, Vec3)>> = unit_pos
+        .iter()
+        .flat_map(|(t, u)| u.iter().map(|(e, p, u)| (*t, *e, u.color, *p)))
+        .chain(
+            building_pos.iter().flat_map(|(t, b)| b.iter().map(|(e, p, b)| (*t, *e, b.color, *p))),
+        )
+        .fold(HashMap::new(), |mut acc, (t, e, c, p)| {
+            acc.entry(t).or_default().push((e, c, p));
+            acc
+        });
+
     // Move units
     for (unit_e, mut unit_t, mut unit_s, mut unit) in
         unit_q.iter_mut().filter(|(_, _, _, u)| matches!(u.action, Action::Idle | Action::Run))
@@ -339,7 +350,7 @@ pub fn apply_movement(
             &mut arrow_s,
             &mut apply_damage_msg,
             &mut despawn_msg,
-            &unit_pos,
+            &any_pos,
             &settings,
             &images,
             &time,

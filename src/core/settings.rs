@@ -14,7 +14,7 @@ pub enum PlayerColor {
 impl PlayerColor {
     pub fn color(self) -> Color {
         match self {
-            Self::Black => Color::srgb_u8(214, 20, 41),
+            Self::Black => Color::srgb_u8(104, 128, 145),
             Self::Blue => Color::srgb_u8(71, 149, 167),
             Self::Purple => Color::srgb_u8(163, 112, 150),
             Self::Red => Color::srgb_u8(222, 84, 84),

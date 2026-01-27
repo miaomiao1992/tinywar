@@ -12,8 +12,8 @@ use bevy::window::SystemCursorIcon;
 
 #[derive(Component, Clone, Debug, PartialEq)]
 pub enum SettingsBtn {
-    Blue,
     Black,
+    Blue,
     Purple,
     Red,
     Yellow,
@@ -26,8 +26,8 @@ pub enum SettingsBtn {
 
 fn match_setting(button: &SettingsBtn, settings: &Settings) -> bool {
     match button {
-        SettingsBtn::Blue => settings.color == PlayerColor::Blue,
         SettingsBtn::Black => settings.color == PlayerColor::Black,
+        SettingsBtn::Blue => settings.color == PlayerColor::Blue,
         SettingsBtn::Purple => settings.color == PlayerColor::Purple,
         SettingsBtn::Red => settings.color == PlayerColor::Red,
         SettingsBtn::Yellow => settings.color == PlayerColor::Yellow,
@@ -59,8 +59,8 @@ pub fn on_click_label_button(
     mut change_audio_msg: MessageWriter<ChangeAudioMsg>,
 ) {
     match btn_q.get(event.entity).unwrap().1 {
-        SettingsBtn::Blue => settings.color = PlayerColor::Blue,
         SettingsBtn::Black => settings.color = PlayerColor::Black,
+        SettingsBtn::Blue => settings.color = PlayerColor::Blue,
         SettingsBtn::Purple => settings.color = PlayerColor::Purple,
         SettingsBtn::Red => settings.color = PlayerColor::Red,
         SettingsBtn::Yellow => settings.color = PlayerColor::Yellow,

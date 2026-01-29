@@ -11,6 +11,8 @@ use bevy_tweening::{CycleCompletedEvent, Delay, Tween, TweenAnim};
 use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use crate::core::mechanics::explosion::ExplosionMsg;
+use crate::core::player::Players;
 
 #[derive(Component, Deref, DerefMut)]
 pub struct BuildingDestroyCmp(pub Timer);
@@ -67,6 +69,7 @@ impl ApplyDamageMsg {
 pub fn resolve_attack(
     entity_q: Query<(Entity, &Transform)>,
     unit_q: Query<(&Transform, &Unit)>,
+    players: Res<Players>,
     mut cycle_completed_msg: MessageReader<CycleCompletedEvent>,
     mut spawn_arrow_msg: MessageWriter<SpawnArrowMsg>,
     mut apply_damage_msg: MessageWriter<ApplyDamageMsg>,
@@ -74,6 +77,8 @@ pub fn resolve_attack(
     // Apply damage after the attacking animation finished
     for msg in cycle_completed_msg.read() {
         if let Ok((unit_t, unit)) = unit_q.get(msg.anim_entity) {
+            let player = players.get_by_color(unit.color);
+
             match unit.action {
                 Action::Attack(e) | Action::Heal(e) => {
                     if let Ok((target_e, target_t)) = entity_q.get(e) {
@@ -81,7 +86,7 @@ pub fn resolve_attack(
                             // Archers don't apply damage but spawn arrows at the end of the animation
                             spawn_arrow_msg.write(SpawnArrowMsg {
                                 color: unit.color,
-                                damage: unit.name.damage(),
+                                damage: unit.damage(player),
                                 start: Vec2::new(
                                     unit_t.translation.x
                                         + 0.25
@@ -98,7 +103,7 @@ pub fn resolve_attack(
                             });
                         } else {
                             apply_damage_msg
-                                .write(ApplyDamageMsg::new(target_e, unit.name.damage()));
+                                .write(ApplyDamageMsg::new(target_e, unit.damage(player)));
                         }
                     }
                 },
@@ -114,8 +119,7 @@ pub fn apply_damage_message(
     mut building_q: Query<(Entity, &mut Building)>,
     mut apply_damage_msg: MessageReader<ApplyDamageMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
-    mut play_audio_msg: MessageWriter<PlayAudioMsg>,
-    assets: Local<WorldAssets>,
+    mut explosion_msg: MessageWriter<ExplosionMsg>,
 ) {
     for msg in apply_damage_msg.read() {
         if let Ok((unit_e, mut unit)) = unit_q.get_mut(msg.entity) {
@@ -130,50 +134,8 @@ pub fn apply_damage_message(
             if building.health > 0. {
                 building.health = (building.health - msg.damage).clamp(0., building.name.health());
                 if building.health == 0. {
-                    let mut rng = rng();
-
-                    play_audio_msg.write(PlayAudioMsg::new("explosion"));
-
-                    // Insert destroy animation
-                    commands
-                        .entity(building_e)
-                        .insert(BuildingDestroyCmp::default())
-                        .with_children(|parent| {
-                            let size = building.name.size();
-                            for _ in 0..7 {
-                                let atlas =
-                                    assets.atlas(format!("explosion{}", rng.random_range(1..3)));
-
-                                parent.spawn((
-                                    Sprite {
-                                        image: atlas.image,
-                                        texture_atlas: Some(atlas.atlas),
-                                        ..default()
-                                    },
-                                    Transform {
-                                        translation: Vec3::new(
-                                            rng.random_range(-0.4 * size.x..0.4 * size.x),
-                                            rng.random_range(-0.3 * size.y..0.3 * size.y),
-                                            EXPLOSION_Z,
-                                        ),
-                                        scale: Vec3::splat(rng.random_range(1.0..1.5)),
-                                        ..default()
-                                    },
-                                    TweenAnim::new(
-                                        Delay::new(Duration::from_millis(
-                                            rng.random_range(1..1000),
-                                        ))
-                                        .then(Tween::new(
-                                            EaseFunction::Linear,
-                                            Duration::from_millis(
-                                                FRAME_RATE * atlas.last_index as u64,
-                                            ),
-                                            SpriteFrameLens(atlas.last_index),
-                                        )),
-                                    ),
-                                ));
-                            }
-                        });
+                    commands.entity(building_e).insert(BuildingDestroyCmp::default());
+                    explosion_msg.write(ExplosionMsg(building_e));
                 }
             }
         }

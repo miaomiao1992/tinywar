@@ -7,6 +7,7 @@ use rand::prelude::IndexedRandom;
 use rand::rng;
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumDiscriminants, EnumIter};
+use crate::core::boosts::Boost;
 
 #[derive(EnumIter, Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum UnitName {
@@ -188,11 +189,27 @@ impl Unit {
         }
     }
 
-    pub fn range(&self) -> f32 {
-        if self.on_building.is_some() {
+    pub fn range(&self, player: &Player) -> f32 {
+        let mut range = if self.on_building.is_some() {
             2. * self.name.range()
         } else {
             self.name.range()
+        };
+        
+        if self.name == UnitName::Archer && player.has_boost(Boost::Longbow) {
+            range *= 1.5;
         }
+        
+        range
+    }
+    
+    pub fn damage(&self, player: &Player) -> f32 {
+        let mut damage = self.name.damage();
+        
+        if self.name == UnitName::Warrior && player.has_boost(Boost::Warrior) {
+            damage *= 1.3;
+        }
+        
+        damage
     }
 }

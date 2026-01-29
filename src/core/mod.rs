@@ -53,6 +53,7 @@ use {
     crate::core::persistence::{load_game, save_game, LoadGameMsg, SaveGameMsg},
     bevy_renet::renet::{RenetClient, RenetServer},
 };
+use crate::core::mechanics::explosion::{explosion_message, ExplosionMsg};
 
 pub struct GamePlugin;
 
@@ -98,6 +99,7 @@ impl Plugin for GamePlugin {
             .add_message::<DespawnMsg>()
             .add_message::<ActivateBoostMsg>()
             .add_message::<ApplyDamageMsg>()
+            .add_message::<ExplosionMsg>()
             // Resources
             .insert_resource(ClearColor(WATER_COLOR))
             .init_resource::<PlayingAudio>()
@@ -170,6 +172,7 @@ impl Plugin for GamePlugin {
                     spawn_unit_message,
                     spawn_building_message,
                     spawn_arrow_message,
+                    explosion_message,
                     update_units,
                     update_buildings,
                     (check_boost_timer, apply_movement, resolve_attack, apply_damage_message)

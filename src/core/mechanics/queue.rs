@@ -1,4 +1,5 @@
 use crate::core::audio::PlayAudioMsg;
+use crate::core::boosts::Boost;
 use crate::core::constants::MAX_QUEUE_LENGTH;
 use crate::core::mechanics::spawn::SpawnUnitMsg;
 use crate::core::menu::systems::Host;
@@ -67,9 +68,15 @@ pub fn queue_resolve(
             continue;
         }
 
+        let queue_boost = if player.has_boost(Boost::SpawnTime) {
+            1.2
+        } else {
+            1.0
+        };
+
         let mut spawn = None;
         if let Some(queue) = player.queue.front_mut() {
-            queue.timer.tick(scale_duration(time.delta(), settings.speed));
+            queue.timer.tick(scale_duration(time.delta(), settings.speed * queue_boost));
 
             if queue.timer.just_finished() {
                 spawn = Some(queue.unit);

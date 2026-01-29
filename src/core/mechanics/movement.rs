@@ -4,7 +4,7 @@ use crate::core::constants::{
 use crate::core::map::map::Map;
 use crate::core::mechanics::combat::{ApplyDamageMsg, Arrow};
 use crate::core::mechanics::spawn::DespawnMsg;
-use crate::core::player::Players;
+use crate::core::player::{Players, Side};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit, UnitName};
@@ -47,8 +47,10 @@ fn move_unit(
     let tile = Map::world_to_tile(&unit_t.translation);
     let mut path = map.path(&unit.path);
 
+    let player = players.get_by_color(unit.color);
+    
     // Reverse paths for the enemy
-    if players.me.color != unit.color {
+    if player.side == Side::Right {
         path.reverse();
     }
 
@@ -64,7 +66,7 @@ fn move_unit(
     let mut separation = Vec3::ZERO;
 
     // Only check units in the surrounding
-    for tile in get_tiles_at_distance(&tile, 4) {
+    for tile in get_tiles_at_distance(&tile, 5) {
         if let Some(units) = unit_pos.get(&tile) {
             for (other_e, other_pos, other) in units {
                 let delta = unit_t.translation - other_pos;
@@ -72,7 +74,7 @@ fn move_unit(
                 let dist = delta.length();
 
                 // Skip if self or too far to interact
-                if unit_e == *other_e || dist > unit.range() * RADIUS {
+                if unit_e == *other_e || dist > unit.range(player) * RADIUS {
                     continue;
                 }
 
@@ -149,7 +151,7 @@ fn move_unit(
 
                 if unit.name.can_attack()
                     && building.color != unit.color
-                    && dist <= (unit.range() * RADIUS).max(2. * RADIUS)
+                    && dist <= (unit.range(player) * RADIUS).max(2. * RADIUS)
                 {
                     unit.action = Action::Attack(*building_e);
                     return;

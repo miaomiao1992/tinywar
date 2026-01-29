@@ -14,6 +14,7 @@ use bevy_tweening::{RepeatCount, Tween, TweenAnim};
 use itertools::Itertools;
 use rand::{rng, Rng};
 use std::time::Duration;
+use crate::core::player::Players;
 
 #[derive(Component)]
 pub struct IsHealing;
@@ -35,6 +36,7 @@ pub fn update_units(
         (With<HealthCmp>, Without<Unit>, Without<Building>),
     >,
     children_q: Query<&Children>,
+    players: Res<Players>,
     assets: Local<WorldAssets>,
 ) {
     // Collect positions and health and for all units and buildings
@@ -54,13 +56,15 @@ pub fn update_units(
         .collect();
 
     for (unit_e, unit_t, mut unit_s, heal, mut unit) in &mut unit_q {
+        let player = players.get_by_color(unit.color);
+
         // Check that the action receiver still exists and is in range, else go back to idle
         unit.action = match unit.action {
             Action::Attack(e) => {
                 if building_q.get(e).is_ok() {
                     unit.action
                 } else if let Some((pos, _)) = units.get(&e) {
-                    if unit_t.translation.distance(*pos) <= unit.range() * RADIUS {
+                    if unit_t.translation.distance(*pos) <= unit.range(player) * RADIUS {
                         unit_s.flip_x = pos.x < unit_t.translation.x;
                         unit.action
                     } else {
@@ -73,7 +77,7 @@ pub fn update_units(
             Action::Heal(e) => units
                 .get(&e)
                 .filter(|(pos, target)| {
-                    unit_t.translation.distance(*pos) <= unit.range() * RADIUS
+                    unit_t.translation.distance(*pos) <= unit.range(player) * RADIUS
                         && target.health < target.name.health()
                 })
                 .map(|(pos, _)| {

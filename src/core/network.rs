@@ -15,6 +15,7 @@ use bevy_renet::renet::*;
 use bincode::config::standard;
 use bincode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
+use crate::core::mechanics::explosion::ExplosionMsg;
 
 const PROTOCOL_ID: u64 = 7;
 
@@ -67,6 +68,7 @@ pub enum ServerMessage {
         speed: f32,
         population: Population,
     },
+    Explosion(Entity),
 }
 
 impl ServerMessage {
@@ -266,6 +268,7 @@ pub fn client_receive_message(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut client_send_msg: MessageWriter<ClientSendMsg>,
     mut update_population_msg: MessageWriter<UpdatePopulationMsg>,
+    mut explosion_msg: MessageWriter<ExplosionMsg>,
     game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
@@ -304,6 +307,9 @@ pub fn client_receive_message(
                 },
                 GameState::Playing | GameState::BoostSelection => next_game_state.set(state),
                 _ => (),
+            },
+            ServerMessage::Explosion(entity) => {
+                explosion_msg.write(ExplosionMsg(entity));
             },
             _ => unreachable!(),
         }

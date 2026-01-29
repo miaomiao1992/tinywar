@@ -135,6 +135,10 @@ impl Player {
     pub fn is_human(&self) -> bool {
         self.id == 0 || (self.id > 10 && self.id < ClientId::MAX)
     }
+
+    pub fn has_boost(&self, boost: Boost) -> bool {
+        self.boosts.iter().any(|b| b.name == boost && b.active)
+    }
 }
 
 #[derive(Resource, Clone, Debug, Serialize, Deserialize)]

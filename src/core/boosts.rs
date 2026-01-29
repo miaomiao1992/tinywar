@@ -49,7 +49,7 @@ impl Boost {
         match self {
             Boost::Castle => "Upgrade your base to a castle.",
             Boost::Longbow => "Increase the range of your archers by 50%.",
-            Boost::SpawnTime => "Reduces all unit spawn time by 20%.",
+            Boost::SpawnTime => "Reduces all spawning times by 20%.",
             Boost::Tower => "Spawns a defense tower near the base.",
             Boost::Warrior => "Increase your warrior's damage by 30%.",
         }

@@ -24,6 +24,7 @@ pub fn setup_boost_selection(
     mut commands: Commands,
     settings: Res<Settings>,
     players: Res<Players>,
+    mut play_audio_ev: MessageWriter<PlayAudioMsg>,
     mut next_game_state: ResMut<NextState<GameState>>,
     assets: Local<WorldAssets>,
     window: Single<&Window>,
@@ -37,6 +38,8 @@ pub fn setup_boost_selection(
         }
         return;
     }
+
+    play_audio_ev.write(PlayAudioMsg::new("message"));
 
     // The possible boosts to select are those that aren't drained nor in the current selected list
     let boosts = Boost::iter()
@@ -69,6 +72,7 @@ pub fn setup_boost_selection(
                                 ..default()
                             },
                             ImageNode::new(assets.image("boost")),
+                            GlobalZIndex(1),
                             UiCmp, // Required to not pause animation
                             TweenAnim::new(
                                 Tween::new(
@@ -82,16 +86,17 @@ pub fn setup_boost_selection(
                             ),
                             children![(
                                 Node {
-                                    top: Val::Percent(26.),
-                                    height: Val::Percent(30.),
+                                    top: Val::Percent(27.),
+                                    height: Val::Percent(33.5),
                                     width: Val::Percent(85.),
                                     ..default()
                                 },
                                 ImageNode::new(assets.image(boost.to_lowername())),
+                                GlobalZIndex(0),
                                 children![(
                                     Node {
-                                        bottom: Val::Percent(0.),
-                                        right: Val::Percent(3.),
+                                        bottom: Val::Percent(1.),
+                                        right: Val::Percent(5.),
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
@@ -106,9 +111,9 @@ pub fn setup_boost_selection(
                             ),
                             (
                                 Node {
-                                    top: Val::Percent(32.),
+                                    top: Val::Percent(34.),
                                     height: Val::Percent(30.),
-                                    width: Val::Percent(60.),
+                                    width: Val::Percent(70.),
                                     ..default()
                                 },
                                 TextColor(Color::BLACK),
@@ -123,6 +128,7 @@ pub fn setup_boost_selection(
                         ))
                         .observe(cursor::<Over>(SystemCursorIcon::Pointer))
                         .observe(cursor::<Out>(SystemCursorIcon::Default))
+                        .observe(cursor::<Release>(SystemCursorIcon::Default))
                         .observe(move |
                             trigger: On<Pointer<Click>>,
                             settings: Res<Settings>,

@@ -166,7 +166,7 @@ pub fn check_keys_playing_game(
     // Spawn units
     for unit in UnitName::iter() {
         if keyboard.just_released(unit.key()) {
-            queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit, false));
+            queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit));
             play_audio_msg.write(PlayAudioMsg::new("button"));
         }
     }

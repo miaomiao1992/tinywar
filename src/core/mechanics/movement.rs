@@ -1,3 +1,4 @@
+use crate::core::boosts::Boost;
 use crate::core::constants::{
     ARROW_Z, BUILDINGS_Z, CAPPED_DELTA_SECS_SPEED, RADIUS, SEPARATION_RADIUS,
 };
@@ -91,7 +92,10 @@ fn move_unit(
                         Action::Attack(*other_e)
                     },
                     _ => {
-                        if dist <= SEPARATION_RADIUS && other.on_building.is_none() {
+                        if dist <= SEPARATION_RADIUS
+                            && other.on_building.is_none()
+                            && !player.has_boost(Boost::NoCollision)
+                        {
                             let strength = (SEPARATION_RADIUS - dist).powi(3) / (SEPARATION_RADIUS);
 
                             // Calculate a "sideways" vector (perpendicular to movement)
@@ -178,6 +182,11 @@ fn move_unit(
     let mut next_pos = unit_t.translation
         + movement.normalize()
             * unit.name.speed()
+            * if player.has_boost(Boost::Run) {
+                2.
+            } else {
+                1.
+            }
             * settings.speed
             * time.delta_secs().min(CAPPED_DELTA_SECS_SPEED);
 

@@ -162,7 +162,6 @@ impl Plugin for GamePlugin {
                 Update,
                 (update_ui, update_ui2, update_animations, update_explosions).in_set(InGameSet),
             )
-            .add_systems(Update, queue_message.in_set(InPlayingOrPausedSet))
             .add_systems(
                 Update,
                 (
@@ -181,6 +180,7 @@ impl Plugin for GamePlugin {
                 )
                     .in_set(InPlayingSet),
             )
+            .add_systems(PostUpdate, queue_message.in_set(InPlayingOrPausedSet))
             .add_systems(Last, despawn_message.in_set(InPlayingSet))
             .add_systems(OnExit(AppState::Game), (despawn::<MapCmp>, reset_camera))
             .add_systems(OnEnter(GameState::BoostSelection), setup_boost_selection)
@@ -201,6 +201,7 @@ impl Plugin for GamePlugin {
             .add_message::<UpdatePopulationMsg>()
             .init_resource::<Ip>()
             .init_resource::<EntityMap>()
+            .init_resource::<AfterBoostCount>()
             .add_systems(
                 First,
                 (

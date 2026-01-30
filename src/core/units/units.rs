@@ -203,12 +203,22 @@ impl Unit {
         range
     }
 
-    pub fn damage(&self, player: &Player) -> f32 {
+    pub fn damage(&self, player: &Player, enemy: &Player) -> f32 {
         let mut damage = self.name.damage();
 
-        if self.name == UnitName::Warrior && player.has_boost(Boost::Warrior) {
-            damage *= 1.3;
-        }
+        damage *= match self.name {
+            UnitName::Warrior if player.has_boost(Boost::Warrior) => 1.5,
+            UnitName::Lancer if player.has_boost(Boost::Lancer) => 1.6,
+            UnitName::Archer if player.has_boost(Boost::Armor) => 1.3,
+            UnitName::Priest if player.has_boost(Boost::Meditation) => 1.7,
+            _ => 1.,
+        };
+
+        damage *= if enemy.has_boost(Boost::Armor) {
+            0.7
+        } else {
+            1.0
+        };
 
         damage
     }

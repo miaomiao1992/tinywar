@@ -1,17 +1,21 @@
 use crate::core::audio::PlayAudioMsg;
 use crate::core::map::map::Map;
-use crate::core::mechanics::spawn::{DespawnMsg, SpawnBuildingMsg};
+use crate::core::mechanics::spawn::{DespawnMsg, SpawnBuildingMsg, SpawnUnitMsg};
 use crate::core::menu::systems::Host;
 use crate::core::network::{ClientMessage, ClientSendMsg};
 use crate::core::player::{Players, Side};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::GameState;
 use crate::core::units::buildings::{Building, BuildingName};
+use crate::core::units::units::{Unit, UnitName};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::TilePos;
 use bevy_renet::renet::RenetServer;
+use rand::prelude::IteratorRandom;
+use rand::rng;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Component)]
@@ -37,8 +41,20 @@ pub struct AfterBoostCount(pub usize);
 
 #[derive(EnumIter, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Boost {
+    Armor,
+    Arrows,
+    Boss,
     Castle,
+    Clone,
+    DoubleQueue,
+    Healing,
+    InstantArmy,
+    Lancer,
     Longbow,
+    Meditation,
+    NoCollision,
+    Repair,
+    Run,
     SpawnTime,
     Tower,
     Warrior,
@@ -47,25 +63,41 @@ pub enum Boost {
 impl Boost {
     pub fn description(&self) -> &'static str {
         match self {
+            Boost::Armor => "Increase your warrior's damage by 30%.",
+            Boost::Arrows => "Your units and buildings block 30% of the incoming damage.",
+            Boost::Boss => "Spawn a mighty warrior with increased health and damage.",
             Boost::Castle => "Upgrade your base to a castle.",
+            Boost::Clone => "Clones 8 random units of yours (in position).",
+            Boost::DoubleQueue => "Two units are queued at the same time.",
+            Boost::Healing => "Instantly heal all your units to their maximum health.",
+            Boost::InstantArmy => "Immediately spawn 6 random units in the base.",
+            Boost::Lancer => "Increase your lancer's damage by 60%.",
             Boost::Longbow => "Increase the range of your archers by 50%.",
-            Boost::SpawnTime => "Reduces all spawning times by 20%.",
-            Boost::Tower => "Spawns a defense tower near the base.",
-            Boost::Warrior => "Increase your warrior's damage by 30%.",
+            Boost::Meditation => "Your priest's healing is 70% stronger.",
+            Boost::NoCollision => "Your units don't collide with each other.",
+            Boost::Repair => "Instantly repair all your buildings to their maximum health.",
+            Boost::Run => "Increase the speed of all your units by 100%.",
+            Boost::SpawnTime => "Reduce all spawning times by 20%.",
+            Boost::Tower => "Spawn a defense tower near the base.",
+            Boost::Warrior => "Increase your warrior's damage by 50%.",
         }
     }
 
-    /// Whether this boost can only be selected once
+    /// Whether this boost can only be selected once per game
     pub fn is_draining(&self) -> bool {
-        match self {
-            Boost::Castle | Boost::Tower => true,
-            _ => false,
-        }
+        matches!(self, Boost::Castle | Boost::Tower)
     }
 
     pub fn duration(&self) -> u64 {
         match self {
-            Boost::Longbow => 60,
+            Boost::Armor => 20,
+            Boost::Arrows => 40,
+            Boost::DoubleQueue => 20,
+            Boost::Lancer => 40,
+            Boost::Longbow => 40,
+            Boost::Meditation => 40,
+            Boost::NoCollision => 20,
+            Boost::Run => 15,
             Boost::SpawnTime => 90,
             Boost::Warrior => 40,
             _ => 0,
@@ -74,7 +106,6 @@ impl Boost {
 }
 
 pub fn check_boost_timer(
-    mut play_audio_ev: MessageWriter<PlayAudioMsg>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut game_settings: ResMut<Settings>,
     time: Res<Time>,
@@ -83,7 +114,6 @@ pub fn check_boost_timer(
     game_settings.boost_timer.tick(time);
 
     if game_settings.boost_timer.is_finished() {
-        play_audio_ev.write(PlayAudioMsg::new("message"));
         next_game_state.set(GameState::BoostSelection);
     }
 }
@@ -99,9 +129,11 @@ pub fn update_boosts(settings: Res<Settings>, mut players: ResMut<Players>, time
 }
 
 pub fn activate_boost_message(
-    building_q: Query<(Entity, &Transform, &Building)>,
+    mut unit_q: Query<(&Transform, &mut Unit)>,
+    mut building_q: Query<(Entity, &Transform, &mut Building)>,
     host: Option<Res<Host>>,
     players: Res<Players>,
+    mut spawn_unit_msg: MessageWriter<SpawnUnitMsg>,
     mut spawn_building_msg: MessageWriter<SpawnBuildingMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
     mut activate_boost_msg: MessageReader<ActivateBoostMsg>,
@@ -116,6 +148,7 @@ pub fn activate_boost_message(
         if host.is_none() {
             client_send_msg.write(ClientSendMsg::new(ClientMessage::ActivateBoost(msg.boost)));
         } else {
+            let mut rng = rng();
             match msg.boost {
                 Boost::Castle => {
                     if let Some((base_e, base_t, base)) =
@@ -135,6 +168,34 @@ pub fn activate_boost_message(
                         });
                     }
                 },
+                Boost::Clone => {
+                    for (unit_t, unit) in unit_q
+                        .iter()
+                        .filter(|(_, u)| u.color == player.color && u.on_building.is_none())
+                        .choose_multiple(&mut rng, 8)
+                    {
+                        spawn_unit_msg.write(SpawnUnitMsg {
+                            color: player.color,
+                            unit: unit.name,
+                            position: Some(unit_t.translation.truncate()),
+                            on_building: None,
+                            entity: None,
+                        });
+                    }
+                },
+                Boost::Healing => unit_q
+                    .iter_mut()
+                    .filter(|(_, u)| u.color == player.color)
+                    .for_each(|(_, mut u)| u.health = u.name.health()),
+                Boost::InstantArmy => {
+                    for unit in UnitName::iter().choose_multiple(&mut rng, 5) {
+                        spawn_unit_msg.write(SpawnUnitMsg::new(player.color, unit));
+                    }
+                },
+                Boost::Repair => building_q
+                    .iter_mut()
+                    .filter(|(_, _, b)| b.color == player.color)
+                    .for_each(|(_, _, mut b)| b.health = b.name.health()),
                 Boost::Tower => {
                     let position = match player.side {
                         Side::Left => Map::tile_to_world(TilePos::new(2, 3)),

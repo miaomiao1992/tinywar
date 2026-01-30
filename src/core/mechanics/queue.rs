@@ -19,15 +19,13 @@ use strum::IntoEnumIterator;
 pub struct QueueUnitMsg {
     pub id: ClientId,
     pub unit: UnitName,
-    pub automatic: bool,
 }
 
 impl QueueUnitMsg {
-    pub fn new(id: ClientId, unit: UnitName, automatic: bool) -> Self {
+    pub fn new(id: ClientId, unit: UnitName) -> Self {
         Self {
             id,
             unit,
-            automatic,
         }
     }
 }
@@ -41,11 +39,7 @@ pub fn queue_message(
         let player = players.get_by_id_mut(msg.id);
 
         if player.queue.len() < MAX_QUEUE_LENGTH {
-            // There could be race conditions between automatic pushes and queue draining
-            // Add extra check to avoid queuing 2 units when in automatic mode
-            if !msg.automatic || player.queue.is_empty() {
-                player.queue.push_back(QueuedUnit::new(msg.unit, msg.unit.spawn_duration()));
-            }
+            player.queue.push_back(QueuedUnit::new(msg.unit, msg.unit.spawn_duration()));
         } else if player.is_human() {
             play_audio_msg.write(PlayAudioMsg::new("error"));
         }
@@ -74,37 +68,46 @@ pub fn queue_resolve(
             1.0
         };
 
-        let mut spawn = None;
-        if let Some(queue) = player.queue.front_mut() {
-            queue.timer.tick(scale_duration(time.delta(), settings.speed * queue_boost));
+        let mut spawns: Vec<(usize, UnitName)> = Vec::with_capacity(2);
 
-            if queue.timer.just_finished() {
-                spawn = Some(queue.unit);
-            }
-        } else if player.is_human() {
-            queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default, true));
+        let max_slots = if player.has_boost(Boost::DoubleQueue) {
+            2
         } else {
-            // Spawn units randomly with inverse probability to their spawning time
-            let units: Vec<UnitName> = UnitName::iter().collect();
+            1
+        };
 
-            let weights: Vec<f64> = units.iter().map(|u| 1.0 / u.spawn_duration() as f64).collect();
+        for i in 0..max_slots {
+            if let Some(queue) = player.queue.get_mut(i) {
+                queue.timer.tick(scale_duration(time.delta(), settings.speed * queue_boost));
 
-            let dist = WeightedIndex::new(&weights).unwrap();
-            let unit = units[dist.sample(&mut rng())];
+                if queue.timer.just_finished() {
+                    spawns.push((i, queue.unit));
+                }
+            } else if player.is_human() {
+                queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default));
+            } else {
+                // Spawn units randomly with inverse probability to their spawning time
+                let units: Vec<UnitName> = UnitName::iter().collect();
+                let weights: Vec<f64> =
+                    units.iter().map(|u| 1.0 / u.spawn_duration() as f64).collect();
 
-            queue_unit_msg.write(QueueUnitMsg::new(player.id, unit, true));
+                let dist = WeightedIndex::new(&weights).unwrap();
+                let unit = units[dist.sample(&mut rng())];
+
+                queue_unit_msg.write(QueueUnitMsg::new(player.id, unit));
+            }
         }
 
-        if let Some(unit) = spawn {
+        for (i, unit) in spawns.iter().rev() {
             if host.is_some() {
-                spawn_unit_msg.write(SpawnUnitMsg::new(player.color, unit));
+                spawn_unit_msg.write(SpawnUnitMsg::new(player.color, *unit));
             } else {
                 #[cfg(not(target_arch = "wasm32"))]
-                client_send_msg.write(ClientSendMsg::new(ClientMessage::SpawnUnit(unit)));
+                client_send_msg.write(ClientSendMsg::new(ClientMessage::SpawnUnit(*unit)));
             }
 
-            player.queue.pop_front();
-            player.queue_default = unit;
+            player.queue.remove(*i);
+            player.queue_default = *unit;
         }
     }
 }

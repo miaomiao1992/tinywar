@@ -1,6 +1,6 @@
 use crate::core::assets::WorldAssets;
 use crate::core::audio::PlayAudioMsg;
-use crate::core::boosts::ActivateBoostMsg;
+use crate::core::boosts::{ActivateBoostMsg, Boost};
 use crate::core::constants::{MAX_BOOSTS, MAX_QUEUE_LENGTH};
 use crate::core::map::systems::MapCmp;
 use crate::core::mechanics::queue::QueueUnitMsg;
@@ -52,7 +52,7 @@ pub struct ShopButtonCmp(pub UnitName);
 #[derive(Component)]
 pub struct ShopLabelCmp(pub UnitName);
 
-#[derive(Component)]
+#[derive(Component, Deref)]
 pub struct SwordQueueCmp(pub usize);
 
 #[derive(Component)]
@@ -382,7 +382,7 @@ pub fn draw_ui(
                              mut play_audio_msg: MessageWriter<PlayAudioMsg>| {
                                 if event.button == PointerButton::Primary {
                                     let unit = btn_q.get(event.entity).unwrap().0;
-                                    queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit, false));
+                                    queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit));
                                     play_audio_msg.write(PlayAudioMsg::new("button"));
                                 }
                             },
@@ -421,28 +421,30 @@ pub fn draw_ui(
                             ..default()
                         },
                         ImageNode::new(assets.image("selected boost")),
+                        GlobalZIndex(1),
                         BoostBoxCmp(i),
                         children![
                             (
                                 Node {
-                                    top: Val::Percent(28.),
-                                    left: Val::Percent(11.),
-                                    height: Val::Percent(57.),
-                                    width: Val::Percent(80.),
+                                    top: Val::Percent(28.5),
+                                    left: Val::Percent(6.),
+                                    height: Val::Percent(57.5),
+                                    width: Val::Percent(87.),
                                     position_type: PositionType::Absolute,
                                     ..default()
                                 },
                                 ImageNode::new(assets.image("longbow")),
+                                GlobalZIndex(0),
                                 BoostBoxImageCmp,
                                 children![(
                                     Node {
-                                        bottom: Val::Percent(0.),
-                                        right: Val::Percent(5.),
+                                        bottom: Val::Percent(2.),
+                                        right: Val::Percent(9.),
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
                                     BoostBoxTimerCmp,
-                                    add_text("", "bold", 13., &assets, &window,),
+                                    add_text("", "bold", 14., &assets, &window,),
                                 )],
                             ),
                             (
@@ -778,7 +780,10 @@ pub fn update_ui2(
 
     // Update the queue
     for (mut node, queue) in &mut queue_q {
-        node.display = if queue.0 == 0 || players.me.queue.get(queue.0).is_some() {
+        node.display = if **queue == 0
+            || players.me.queue.get(**queue).is_some()
+            || (**queue == 1 && players.me.has_boost(Boost::DoubleQueue))
+        {
             Display::Flex
         } else {
             Display::None

@@ -74,6 +74,7 @@ pub fn resolve_attack(
     for msg in cycle_completed_msg.read() {
         if let Ok((unit_t, unit)) = unit_q.get(msg.anim_entity) {
             let player = players.get_by_color(unit.color);
+            let enemy = players.get_by_side(player.side.opposite());
 
             match unit.action {
                 Action::Attack(e) | Action::Heal(e) => {
@@ -82,7 +83,7 @@ pub fn resolve_attack(
                             // Archers don't apply damage but spawn arrows at the end of the animation
                             spawn_arrow_msg.write(SpawnArrowMsg {
                                 color: unit.color,
-                                damage: unit.damage(player),
+                                damage: unit.damage(player, enemy),
                                 start: Vec2::new(
                                     unit_t.translation.x
                                         + 0.25
@@ -99,7 +100,7 @@ pub fn resolve_attack(
                             });
                         } else {
                             apply_damage_msg
-                                .write(ApplyDamageMsg::new(target_e, unit.damage(player)));
+                                .write(ApplyDamageMsg::new(target_e, unit.damage(player, enemy)));
                         }
                     }
                 },

@@ -15,6 +15,15 @@ pub enum Side {
     Right,
 }
 
+impl Side {
+    pub fn opposite(&self) -> Side {
+        match self {
+            Side::Left => Side::Right,
+            Side::Right => Side::Left,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub enum PlayerDirection {
     #[default]

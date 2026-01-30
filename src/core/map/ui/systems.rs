@@ -331,8 +331,13 @@ pub fn draw_ui(
                                     .with_children(|parent| {
                                         let attributes = [
                                             ("Health", unit.health().to_string()),
-                                            (if unit.damage() > 0. {"Damage"} else {"Healing"}, unit.damage().abs().to_string()),
-                                            (if unit.damage() > 0. {"Attack speed"} else {"Healing speed"}, format!("{:.1}", 10. / unit.frames(if unit.damage() > 0. {Action::Attack(Entity::PLACEHOLDER)} else {Action::Heal(Entity::PLACEHOLDER)}) as f32)),
+                                            (if unit.attack_damage() > 0. {"Attack damage"} else {"Healing"}, unit.attack_damage().abs().to_string()),
+                                            ("Magic damage", unit.magic_damage().to_string()),
+                                            (if unit.attack_damage() > 0. {"Attack speed"} else {"Healing speed"}, format!("{:.1}", 10. / unit.frames(if unit.attack_damage() > 0. {Action::Attack(Entity::PLACEHOLDER)} else {Action::Heal(Entity::PLACEHOLDER)}) as f32)),
+                                            ("Armor", unit.armor().to_string()),
+                                            ("Magic resist", unit.magic_resist().to_string()),
+                                            ("Armor penetration", unit.armor_pen().to_string()),
+                                            ("Magic penetration", unit.magic_pen().to_string()),
                                             ("Speed", unit.speed().to_string()),
                                             ("Range", unit.range().to_string()),
                                             ("Spawn time", format!("{}s", unit.spawn_duration() / 1000)),
@@ -349,7 +354,7 @@ pub fn draw_ui(
                                                 add_text(
                                                     format!("{k}: {}", v),
                                                     "bold",
-                                                    10.,
+                                                    8.,
                                                     &assets,
                                                     &window,
                                                 ),

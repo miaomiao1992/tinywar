@@ -1,5 +1,6 @@
 use crate::core::assets::WorldAssets;
 use crate::core::constants::*;
+use crate::core::map::map::Path;
 use crate::core::map::systems::MapCmp;
 use crate::core::map::utils::SpriteFrameLens;
 use crate::core::mechanics::combat::Arrow;
@@ -41,6 +42,7 @@ pub struct SpawnUnitMsg {
     pub unit: UnitName,
     pub position: Option<Vec2>,
     pub on_building: Option<Entity>,
+    pub path: Option<Path>,
     pub entity: Option<Entity>,
 }
 
@@ -51,6 +53,7 @@ impl SpawnUnitMsg {
             unit,
             position: None,
             on_building: None,
+            path: None,
             entity: None,
         }
     }
@@ -125,6 +128,7 @@ pub fn spawn_building_message(
                     unit: UnitName::Archer,
                     position: Some(msg.position + pos),
                     on_building: Some(id),
+                    path: None,
                     entity: None,
                 });
             }
@@ -189,7 +193,7 @@ pub fn spawn_unit_message(
                         )
                         .with_repeat_count(RepeatCount::Infinite),
                     ),
-                    Unit::new(msg.unit, players.get_by_color(msg.color), msg.on_building),
+                    Unit::new(msg.unit, players.get_by_color(msg.color), msg.path, msg.on_building),
                     MapCmp,
                     children![(
                         Sprite {

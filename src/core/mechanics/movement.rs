@@ -1,6 +1,6 @@
 use crate::core::boosts::Boost;
 use crate::core::constants::{
-    ARROW_Z, BUILDINGS_Z, CAPPED_DELTA_SECS_SPEED, RADIUS, SEPARATION_RADIUS,
+    ARROW_Z, BUILDINGS_Z, BUILDING_SCALE, CAPPED_DELTA_SECS_SPEED, RADIUS, SEPARATION_RADIUS,
 };
 use crate::core::map::map::Map;
 use crate::core::mechanics::combat::{ApplyDamageMsg, Arrow};
@@ -155,7 +155,9 @@ fn move_unit(
 
                 if unit.name.can_attack()
                     && building.color != unit.color
-                    && dist <= (unit.range(player) * RADIUS).max(2. * RADIUS)
+                    && dist
+                        <= (unit.range(player) * RADIUS)
+                            .max(building.name.size().x * BUILDING_SCALE * 0.5)
                 {
                     unit.action = Action::Attack(*building_e);
                     return;

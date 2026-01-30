@@ -2,7 +2,7 @@ use crate::core::audio::PlayAudioMsg;
 use crate::core::map::map::Map;
 use crate::core::mechanics::spawn::{DespawnMsg, SpawnBuildingMsg, SpawnUnitMsg};
 use crate::core::menu::systems::Host;
-use crate::core::network::{ClientMessage, ClientSendMsg};
+use crate::core::network::{ClientMessage, ClientSendMsg, ServerMessage, ServerSendMsg};
 use crate::core::player::{Players, Side};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::GameState;
@@ -44,6 +44,8 @@ pub enum Boost {
     Armor,
     Arrows,
     Boss,
+    BuildingsBlock,
+    BuildingsDefense,
     Castle,
     Clone,
     DoubleQueue,
@@ -54,6 +56,7 @@ pub enum Boost {
     Meditation,
     NoCollision,
     Repair,
+    Respawn,
     Run,
     SpawnTime,
     Tower,
@@ -63,9 +66,11 @@ pub enum Boost {
 impl Boost {
     pub fn description(&self) -> &'static str {
         match self {
-            Boost::Armor => "Increase your warrior's damage by 30%.",
-            Boost::Arrows => "Your units and buildings block 30% of the incoming damage.",
+            Boost::Armor => "Decrease damage to all your units by 30%.",
+            Boost::Arrows => "Your archers deal 30% more damage.",
             Boost::Boss => "Spawn a mighty warrior with increased health and damage.",
+            Boost::BuildingsBlock => "Block all damage dealt to your buildings.",
+            Boost::BuildingsDefense => "Increase the damage of all units on buildings by 100%.",
             Boost::Castle => "Upgrade your base to a castle.",
             Boost::Clone => "Clones 8 random units of yours (in position).",
             Boost::DoubleQueue => "Two units are queued at the same time.",
@@ -76,6 +81,7 @@ impl Boost {
             Boost::Meditation => "Your priest's healing is 70% stronger.",
             Boost::NoCollision => "Your units don't collide with each other.",
             Boost::Repair => "Instantly repair all your buildings to their maximum health.",
+            Boost::Respawn => "Respawn all dead units on buildings.",
             Boost::Run => "Increase the speed of all your units by 100%.",
             Boost::SpawnTime => "Reduce all spawning times by 20%.",
             Boost::Tower => "Spawn a defense tower near the base.",
@@ -83,15 +89,20 @@ impl Boost {
         }
     }
 
-    /// Whether this boost can only be selected once per game
-    pub fn is_draining(&self) -> bool {
-        matches!(self, Boost::Castle | Boost::Tower)
+    pub fn condition<'a>(&self, mut buildings: impl Iterator<Item = &'a Building>) -> bool {
+        match self {
+            Boost::Castle => !buildings.any(|b| b.name == BuildingName::Castle),
+            Boost::Tower => buildings.filter(|b| b.name == BuildingName::Tower).count() < 2,
+            _ => true,
+        }
     }
 
     pub fn duration(&self) -> u64 {
         match self {
             Boost::Armor => 20,
             Boost::Arrows => 40,
+            Boost::BuildingsBlock => 10,
+            Boost::BuildingsDefense => 25,
             Boost::DoubleQueue => 20,
             Boost::Lancer => 40,
             Boost::Longbow => 40,
@@ -138,16 +149,25 @@ pub fn activate_boost_message(
     mut despawn_msg: MessageWriter<DespawnMsg>,
     mut activate_boost_msg: MessageReader<ActivateBoostMsg>,
     mut client_send_msg: MessageWriter<ClientSendMsg>,
+    mut server_send_msg: MessageWriter<ServerSendMsg>,
     mut play_audio_msg: MessageWriter<PlayAudioMsg>,
 ) {
     for msg in activate_boost_msg.read() {
         let player = players.get_by_color(msg.color);
 
-        play_audio_msg.write(PlayAudioMsg::new("horn"));
-
         if host.is_none() {
+            play_audio_msg.write(PlayAudioMsg::new("horn"));
             client_send_msg.write(ClientSendMsg::new(ClientMessage::ActivateBoost(msg.boost)));
         } else {
+            if players.me.color == msg.color {
+                // Activates own boost
+                play_audio_msg.write(PlayAudioMsg::new("horn"));
+            } else {
+                // Activates enemy boost
+                play_audio_msg.write(PlayAudioMsg::new("warning"));
+                server_send_msg.write(ServerSendMsg::new(ServerMessage::PlayWarning, None));
+            }
+
             let mut rng = rng();
             match msg.boost {
                 Boost::Castle => {
@@ -179,6 +199,7 @@ pub fn activate_boost_message(
                             unit: unit.name,
                             position: Some(unit_t.translation.truncate()),
                             on_building: None,
+                            path: Some(unit.path),
                             entity: None,
                         });
                     }
@@ -188,7 +209,7 @@ pub fn activate_boost_message(
                     .filter(|(_, u)| u.color == player.color)
                     .for_each(|(_, mut u)| u.health = u.name.health()),
                 Boost::InstantArmy => {
-                    for unit in UnitName::iter().choose_multiple(&mut rng, 5) {
+                    for unit in UnitName::iter().choose_multiple(&mut rng, 6) {
                         spawn_unit_msg.write(SpawnUnitMsg::new(player.color, unit));
                     }
                 },
@@ -196,11 +217,56 @@ pub fn activate_boost_message(
                     .iter_mut()
                     .filter(|(_, _, b)| b.color == player.color)
                     .for_each(|(_, _, mut b)| b.health = b.name.health()),
+                Boost::Respawn => {
+                    let current_positions: Vec<Vec2> = unit_q
+                        .iter()
+                        .filter_map(|(t, u)| {
+                            (u.color == player.color && u.on_building.is_some())
+                                .then_some(t.translation.truncate())
+                        })
+                        .collect();
+
+                    for (e, t, b) in building_q.iter().filter(|(_, _, b)| b.color == player.color) {
+                        for pos in b.name.units() {
+                            if !current_positions.contains(&pos) {
+                                spawn_unit_msg.write(SpawnUnitMsg {
+                                    color: b.color,
+                                    unit: UnitName::Archer,
+                                    position: Some(t.translation.truncate() + pos),
+                                    on_building: Some(e),
+                                    path: None,
+                                    entity: None,
+                                });
+                            }
+                        }
+                    }
+                },
                 Boost::Tower => {
-                    let position = match player.side {
-                        Side::Left => Map::tile_to_world(TilePos::new(2, 3)),
-                        Side::Right => Map::tile_to_world(TilePos::new(26, 4)),
+                    let current_positions: Vec<Vec2> = building_q
+                        .iter()
+                        .filter_map(|(_, t, b)| {
+                            (b.color == player.color && b.name == BuildingName::Tower)
+                                .then_some(t.translation.truncate())
+                        })
+                        .collect();
+
+                    let possible_positions = match player.side {
+                        Side::Left => [
+                            Map::tile_to_world(TilePos::new(7, 0)),
+                            Map::tile_to_world(TilePos::new(2, 3)),
+                        ],
+                        Side::Right => [
+                            Map::tile_to_world(TilePos::new(23, 0)),
+                            Map::tile_to_world(TilePos::new(26, 4)),
+                        ],
                     };
+
+                    // Choose one of the two locations randomly that are not present in current positions
+                    let position = possible_positions
+                        .into_iter()
+                        .filter(|p| !current_positions.contains(p))
+                        .choose(&mut rng)
+                        .expect("No free tower position.");
 
                     spawn_building_msg.write(SpawnBuildingMsg {
                         color: player.color,

@@ -122,6 +122,7 @@ pub fn update_population_message(
                     unit: u.name,
                     position: Some(*t),
                     on_building: u.on_building,
+                    path: Some(u.path),
                     entity: Some(*unit_e),
                 });
             }

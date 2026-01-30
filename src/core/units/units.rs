@@ -106,7 +106,24 @@ impl UnitName {
             UnitName::Warrior => 2000,
             UnitName::Lancer => 1500,
             UnitName::Archer => 3000,
-            UnitName::Priest => 4000,
+            UnitName::Priest => 3500,
+        }
+    }
+
+    pub fn speed(&self) -> f32 {
+        match self {
+            UnitName::Warrior => 30.,
+            UnitName::Lancer => 47.,
+            UnitName::Archer => 25.,
+            UnitName::Priest => 25.,
+        }
+    }
+
+    pub fn range(&self) -> f32 {
+        match self {
+            UnitName::Archer => 3.,
+            UnitName::Priest => 3.,
+            _ => 1.,
         }
     }
 
@@ -119,29 +136,51 @@ impl UnitName {
         }
     }
 
-    pub fn speed(&self) -> f32 {
-        match self {
-            UnitName::Warrior => 20.,
-            UnitName::Lancer => 25.,
-            UnitName::Archer => 15.,
-            UnitName::Priest => 15.,
-        }
-    }
-
-    pub fn range(&self) -> f32 {
-        match self {
-            UnitName::Archer => 3.,
-            UnitName::Priest => 3.,
-            _ => 1.,
-        }
-    }
-
-    pub fn damage(&self) -> f32 {
+    pub fn attack_damage(&self) -> f32 {
         match self {
             UnitName::Warrior => 15.,
             UnitName::Lancer => 15.,
             UnitName::Archer => 10.,
             UnitName::Priest => -30., // This is the healing done (negative damage)
+        }
+    }
+
+    pub fn magic_damage(&self) -> f32 {
+        match self {
+            _ => 0.,
+        }
+    }
+
+    pub fn armor(&self) -> f32 {
+        match self {
+            UnitName::Warrior => 7.,
+            UnitName::Lancer => 4.,
+            UnitName::Archer => 1.,
+            UnitName::Priest => 0.,
+        }
+    }
+
+    pub fn magic_resist(&self) -> f32 {
+        match self {
+            UnitName::Warrior => 3.,
+            UnitName::Lancer => 3.,
+            UnitName::Archer => 0.,
+            UnitName::Priest => 12.,
+        }
+    }
+
+    pub fn armor_pen(&self) -> f32 {
+        match self {
+            UnitName::Warrior => 5.,
+            UnitName::Lancer => 8.,
+            UnitName::Archer => 2.,
+            UnitName::Priest => 0.,
+        }
+    }
+
+    pub fn magic_pen(&self) -> f32 {
+        match self {
+            _ => 0.,
         }
     }
 }
@@ -178,13 +217,18 @@ pub struct Unit {
 }
 
 impl Unit {
-    pub fn new(name: UnitName, player: &Player, on_building: Option<Entity>) -> Self {
+    pub fn new(
+        name: UnitName,
+        player: &Player,
+        path: Option<Path>,
+        on_building: Option<Entity>,
+    ) -> Self {
         Unit {
             name,
             color: player.color,
             action: Action::default(),
             health: name.health(),
-            path: *player.direction.paths().choose(&mut rng()).unwrap(),
+            path: path.unwrap_or(*player.direction.paths().choose(&mut rng()).unwrap()),
             on_building,
         }
     }
@@ -201,25 +245,5 @@ impl Unit {
         }
 
         range
-    }
-
-    pub fn damage(&self, player: &Player, enemy: &Player) -> f32 {
-        let mut damage = self.name.damage();
-
-        damage *= match self.name {
-            UnitName::Warrior if player.has_boost(Boost::Warrior) => 1.5,
-            UnitName::Lancer if player.has_boost(Boost::Lancer) => 1.6,
-            UnitName::Archer if player.has_boost(Boost::Armor) => 1.3,
-            UnitName::Priest if player.has_boost(Boost::Meditation) => 1.7,
-            _ => 1.,
-        };
-
-        damage *= if enemy.has_boost(Boost::Armor) {
-            0.7
-        } else {
-            1.0
-        };
-
-        damage
     }
 }

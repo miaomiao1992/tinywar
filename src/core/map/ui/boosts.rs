@@ -9,6 +9,7 @@ use crate::core::menu::utils::{add_root_node, add_text};
 use crate::core::player::{Players, SelectedBoost};
 use crate::core::settings::{GameMode, Settings};
 use crate::core::states::GameState;
+use crate::core::units::buildings::Building;
 use crate::core::utils::cursor;
 use crate::utils::NameFromEnum;
 use bevy::prelude::*;
@@ -22,6 +23,7 @@ use strum::IntoEnumIterator;
 
 pub fn setup_boost_selection(
     mut commands: Commands,
+    building_q: Query<&Building>,
     settings: Res<Settings>,
     players: Res<Players>,
     mut play_audio_ev: MessageWriter<PlayAudioMsg>,
@@ -43,9 +45,9 @@ pub fn setup_boost_selection(
 
     // The possible boosts to select are those that aren't drained nor in the current selected list
     let boosts = Boost::iter()
-        .filter(|t| {
-            !players.me.drained_boosts.contains(t)
-                && !players.me.boosts.iter().map(|b| b.name).contains(t)
+        .filter(|b| {
+            b.condition(building_q.iter().filter(|b| b.color == players.me.color))
+                && !players.me.boosts.iter().map(|b| b.name).contains(b)
         })
         .choose_multiple(&mut rng(), 3);
 
@@ -139,9 +141,6 @@ pub fn setup_boost_selection(
                                 play_audio_msg.write(PlayAudioMsg::new("button"));
 
                                 players.me.boosts.push(SelectedBoost::new(boost));
-                                if boost.is_draining() {
-                                    players.me.drained_boosts.push(boost);
-                                }
 
                                 if settings.game_mode == GameMode::SinglePlayer {
                                     next_game_state.set(GameState::Playing);

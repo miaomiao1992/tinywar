@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-#[derive(EnumIter, Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(EnumIter, Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub enum BuildingName {
     #[default]
     Barracks,

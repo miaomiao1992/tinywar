@@ -1,6 +1,7 @@
 use std::net::{IpAddr, UdpSocket};
 use std::time::SystemTime;
 
+use crate::core::audio::PlayAudioMsg;
 use crate::core::boosts::{ActivateBoostMsg, AfterBoostCount, Boost};
 use crate::core::mechanics::explosion::ExplosionMsg;
 use crate::core::mechanics::spawn::SpawnUnitMsg;
@@ -69,6 +70,7 @@ pub enum ServerMessage {
         population: Population,
     },
     Explosion(Entity),
+    PlayWarning,
 }
 
 impl ServerMessage {
@@ -269,6 +271,7 @@ pub fn client_receive_message(
     mut client_send_msg: MessageWriter<ClientSendMsg>,
     mut update_population_msg: MessageWriter<UpdatePopulationMsg>,
     mut explosion_msg: MessageWriter<ExplosionMsg>,
+    mut play_audio_msg: MessageWriter<PlayAudioMsg>,
     game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
@@ -310,6 +313,9 @@ pub fn client_receive_message(
             },
             ServerMessage::Explosion(entity) => {
                 explosion_msg.write(ExplosionMsg(entity));
+            },
+            ServerMessage::PlayWarning => {
+                play_audio_msg.write(PlayAudioMsg::new("warning"));
             },
             _ => unreachable!(),
         }

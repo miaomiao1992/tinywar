@@ -1,6 +1,7 @@
 use crate::core::audio::PlayAudioMsg;
 use crate::core::constants::{MAX_GAME_SPEED, MIN_GAME_SPEED};
 use crate::core::map::ui::systems::UiCmp;
+use crate::core::mechanics::explosion::ExplosionCmp;
 use crate::core::mechanics::queue::QueueUnitMsg;
 use crate::core::menu::systems::{Host, StartNewGameMsg};
 use crate::core::menu::utils::TextSize;
@@ -81,27 +82,18 @@ pub fn check_keys_game(
     game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    if matches!(
-        game_state.get(),
-        GameState::Playing
-            | GameState::Paused
-            | GameState::BoostSelection
-            | GameState::AfterBoostSelection
-    ) {
-        if keyboard.just_released(KeyCode::Space) {
-            match game_state.get() {
-                GameState::Playing => next_game_state.set(GameState::Paused),
-                GameState::Paused => next_game_state.set(GameState::Playing),
-                _ => (),
-            }
-        } else if host.is_some()
-            && keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight])
-        {
-            if keyboard.just_released(KeyCode::ArrowRight) {
-                settings.speed = (settings.speed * 2.).min(MAX_GAME_SPEED);
-            } else if keyboard.just_released(KeyCode::ArrowLeft) {
-                settings.speed = (settings.speed * 0.5).max(MIN_GAME_SPEED);
-            }
+    if keyboard.just_released(KeyCode::Space) {
+        match game_state.get() {
+            GameState::Playing => next_game_state.set(GameState::Paused),
+            GameState::Paused => next_game_state.set(GameState::Playing),
+            _ => (),
+        }
+    } else if host.is_some() && keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight])
+    {
+        if keyboard.just_released(KeyCode::ArrowRight) {
+            settings.speed = (settings.speed * 2.).min(MAX_GAME_SPEED);
+        } else if keyboard.just_released(KeyCode::ArrowLeft) {
+            settings.speed = (settings.speed * 0.5).max(MIN_GAME_SPEED);
         }
     }
 }
@@ -173,16 +165,20 @@ pub fn check_keys_playing_game(
 }
 
 pub fn update_animations(
-    mut anim_q: Query<&mut TweenAnim, Without<UiCmp>>,
+    mut anim_q: Query<(&mut TweenAnim, Option<&ExplosionCmp>), Without<UiCmp>>,
     settings: Res<Settings>,
     game_state: Res<State<GameState>>,
 ) {
     // Play/pause tween animations
-    anim_q.iter_mut().for_each(|mut t| match game_state.get() {
-        GameState::Playing => {
-            t.playback_state = PlaybackState::Playing;
-            t.speed = settings.speed as f64;
-        },
-        _ => t.playback_state = PlaybackState::Paused,
+    anim_q.iter_mut().for_each(|(mut t, e)| {
+        t.speed = settings.speed as f64;
+        
+        // Skip pause for explosions
+        if e.is_none() {
+            t.playback_state = match game_state.get() {
+                GameState::Playing => PlaybackState::Playing,
+                _ => PlaybackState::Paused,
+            }
+        }
     });
 }

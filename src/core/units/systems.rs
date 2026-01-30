@@ -5,7 +5,6 @@ use crate::core::mechanics::combat::BuildingDestroyCmp;
 use crate::core::mechanics::spawn::{DespawnMsg, HealthCmp, HealthWrapperCmp};
 use crate::core::player::Players;
 use crate::core::settings::Settings;
-use crate::core::states::GameState;
 use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit};
 use crate::utils::{scale_duration, NameFromEnum};
@@ -182,7 +181,6 @@ pub fn update_buildings(
     fire_q: Query<&Transform, (With<FireAnimCmp>, Without<Building>, Without<HealthCmp>)>,
     children_q: Query<&Children>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
-    mut next_game_state: ResMut<NextState<GameState>>,
     settings: Res<Settings>,
     time: Res<Time>,
     assets: Local<WorldAssets>,
@@ -196,9 +194,6 @@ pub fn update_buildings(
 
             if destroy.just_finished() {
                 despawn_msg.write(DespawnMsg(building_e));
-                if building.is_base {
-                    next_game_state.set(GameState::EndGame);
-                }
                 continue;
             }
         }
@@ -263,7 +258,7 @@ pub fn update_buildings(
                         },
                         Transform {
                             translation: Vec3::new(
-                                rng.random_range(-0.4 * b_size.x..0.4 * b_size.x),
+                                rng.random_range(-0.3 * b_size.x..0.3 * b_size.x),
                                 rng.random_range(-0.2 * b_size.y..0.2 * b_size.y),
                                 0.1,
                             ),

@@ -124,7 +124,6 @@ pub struct Player {
     pub queue: VecDeque<QueuedUnit>,
     pub queue_default: UnitName,
     pub boosts: Vec<SelectedBoost>,
-    pub drained_boosts: Vec<Boost>,
 }
 
 impl Player {
@@ -137,7 +136,6 @@ impl Player {
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
             boosts: vec![],
-            drained_boosts: vec![],
         }
     }
 

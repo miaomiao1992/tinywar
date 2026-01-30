@@ -115,6 +115,9 @@ impl Plugin for GamePlugin {
             InPlayingOrPausedSet,
             in_state(GameState::Playing)
                 .or(in_state(GameState::Paused))
+                .or(in_state(GameState::BoostSelection))
+                .or(in_state(GameState::AfterBoostSelection))
+                .or(in_state(GameState::Paused))
                 .and(in_state(AppState::Game))
         );
         configure_stages!(
@@ -151,8 +154,7 @@ impl Plugin for GamePlugin {
                 Update,
                 (
                     check_keys_menu,
-                    check_keys_game.in_set(InGameSet),
-                    check_keys_playing_game.in_set(InPlayingOrPausedSet),
+                    (check_keys_game, check_keys_playing_game).in_set(InPlayingOrPausedSet),
                 ),
             )
             .add_systems(PostUpdate, on_resize_message)
@@ -160,7 +162,15 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(AppState::Game), (draw_map, draw_ui))
             .add_systems(
                 Update,
-                (update_ui, update_ui2, update_animations, update_explosions).in_set(InGameSet),
+                (
+                    explosion_message,
+                    update_ui,
+                    update_ui2,
+                    update_animations,
+                    update_buildings,
+                    update_explosions,
+                )
+                    .in_set(InGameSet),
             )
             .add_systems(
                 Update,
@@ -171,9 +181,7 @@ impl Plugin for GamePlugin {
                     spawn_unit_message,
                     spawn_building_message,
                     spawn_arrow_message,
-                    explosion_message,
                     update_units,
-                    update_buildings,
                     (check_boost_timer, apply_movement, resolve_attack, apply_damage_message)
                         .chain()
                         .run_if(resource_exists::<Host>),
@@ -181,7 +189,7 @@ impl Plugin for GamePlugin {
                     .in_set(InPlayingSet),
             )
             .add_systems(PostUpdate, queue_message.in_set(InPlayingOrPausedSet))
-            .add_systems(Last, despawn_message.in_set(InPlayingSet))
+            .add_systems(Last, despawn_message.in_set(InGameSet))
             .add_systems(OnExit(AppState::Game), (despawn::<MapCmp>, reset_camera))
             .add_systems(OnEnter(GameState::BoostSelection), setup_boost_selection)
             .add_systems(OnExit(GameState::BoostSelection), despawn::<CardCmp>)
@@ -226,7 +234,7 @@ impl Plugin for GamePlugin {
                         server_send_message,
                         server_send_status
                             .run_if(on_timer(Duration::from_millis(UPDATE_TIMER)))
-                            .in_set(InPlayingSet),
+                            .in_set(InGameSet),
                     )
                         .run_if(resource_exists::<RenetServer>),
                     (

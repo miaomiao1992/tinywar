@@ -70,6 +70,7 @@ impl FromWorld for WorldAssets {
         let audio = HashMap::from([
             ("music", assets.load("audio/music.ogg")),
             ("message", assets.load("audio/message.ogg")),
+            ("warning", assets.load("audio/warning.ogg")),
             ("button", assets.load("audio/button.ogg")),
             ("click", assets.load("audio/click.ogg")),
             ("error", assets.load("audio/error.ogg")),
@@ -230,8 +231,8 @@ impl FromWorld for WorldAssets {
         }
 
         let heal = TextureAtlasLayout::from_grid(UVec2::splat(192), 11, 1, None, None);
-        let explosion1 = TextureAtlasLayout::from_grid(UVec2::splat(192), 8, 1, None, None);
-        let explosion2 = TextureAtlasLayout::from_grid(UVec2::splat(192), 10, 1, None, None);
+        let explosion1 = TextureAtlasLayout::from_grid(UVec2::splat(192), 9, 1, None, None);
+        let explosion2 = TextureAtlasLayout::from_grid(UVec2::splat(192), 11, 1, None, None);
         let fire1 = TextureAtlasLayout::from_grid(UVec2::splat(64), 8, 1, None, None);
         let fire2 = TextureAtlasLayout::from_grid(UVec2::splat(64), 10, 1, None, None);
         let fire3 = TextureAtlasLayout::from_grid(UVec2::splat(64), 12, 1, None, None);

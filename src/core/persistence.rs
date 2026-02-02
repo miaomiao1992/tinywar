@@ -15,7 +15,7 @@ use crate::core::units::buildings::Building;
 use crate::core::units::units::Unit;
 use crate::TITLE;
 use bevy::prelude::*;
-use bevy_renet::renet::RenetServer;
+use bevy_renet::RenetServer;
 use bincode::config::standard;
 use bincode::serde::{decode_from_slice, encode_to_vec};
 use rfd::FileDialog;

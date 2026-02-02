@@ -49,7 +49,7 @@ use {
     crate::core::multiplayer::*,
     crate::core::network::*,
     crate::core::persistence::{load_game, run_autosave, save_game, LoadGameMsg, SaveGameMsg},
-    bevy_renet::renet::{RenetClient, RenetServer},
+    bevy_renet::{RenetClient, RenetServer},
 };
 
 pub struct GamePlugin;
@@ -211,6 +211,7 @@ impl Plugin for GamePlugin {
             .init_resource::<Ip>()
             .init_resource::<EntityMap>()
             .init_resource::<AfterBoostCount>()
+            .add_observer(server_update)
             .add_systems(
                 First,
                 (
@@ -220,7 +221,6 @@ impl Plugin for GamePlugin {
             )
             .add_systems(PreUpdate, update_population_message.in_set(InGameSet))
             .add_systems(Update, update_game_state.run_if(state_changed::<GameState>))
-            .add_systems(Update, server_update.run_if(resource_exists::<RenetServer>))
             .add_systems(
                 Update,
                 after_boost_check

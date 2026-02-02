@@ -6,7 +6,7 @@ use {
     crate::core::network::local_ip,
     crate::core::network::{Ip, ServerMessage, ServerSendMsg},
     bevy_renet::netcode::NetcodeServerTransport,
-    bevy_renet::renet::{RenetClient, RenetServer},
+    bevy_renet::{RenetClient, RenetServer},
 };
 
 use crate::core::assets::WorldAssets;

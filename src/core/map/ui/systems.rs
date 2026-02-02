@@ -698,17 +698,17 @@ pub fn update_ui(
     assets: Res<WorldAssets>,
 ) {
     let (mut me, mut enemy) = (50., 50.); // Start with prior
-    let (mut power_me, mut power_enemy) = (0, 0);
+    let (mut power_me, mut power_enemy) = (0., 0.);
     let mut counts = HashMap::new();
     for (t, unit) in unit_q.iter() {
         let mut x = t.translation.x;
 
         let (side, acc) = if unit.color == players.me.color {
             *counts.entry(unit.name).or_insert(0) += 1;
-            power_me += unit.name.spawn_duration();
+            power_me += unit.name.spawn_duration() as f32 * unit.health / unit.name.health();
             (&players.me.side, &mut me)
         } else {
-            power_enemy += unit.name.spawn_duration();
+            power_enemy += unit.name.spawn_duration() as f32 * unit.health / unit.name.health();
             (&players.enemy.side, &mut enemy)
         };
 
@@ -741,7 +741,7 @@ pub fn update_ui(
         if let Ok(children) = children_q.get(entity) {
             for &child in children {
                 if let Ok(mut text) = text_q.get_mut(child) {
-                    text.0 = format!("{:.0}%\n{:.1}k", 100. * n, power as f32 / 1000.);
+                    text.0 = format!("{:.0}%\n{:.1}k", 100. * n, power / 1000.);
                 }
             }
         }

@@ -12,9 +12,11 @@ use crate::core::player::{Player, Players, SelectedBoost, Side};
 use crate::core::settings::{GameMode, PlayerColor, Settings};
 use crate::core::states::{AppState, GameState};
 use crate::core::units::units::UnitName;
+use crate::core::utils::ClientId;
 use bevy::prelude::*;
 use bevy_renet::netcode::*;
-use bevy_renet::renet::*;
+use bevy_renet::renet::{ConnectionConfig, DefaultChannel, ServerEvent};
+use bevy_renet::*;
 use bincode::config::standard;
 use bincode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
@@ -152,47 +154,45 @@ pub fn new_renet_server() -> (RenetServer, NetcodeServerTransport) {
 }
 
 pub fn server_update(
+    event: On<RenetServerEvent>,
     mut n_players_q: Query<&mut Text, With<LobbyTextCmp>>,
     mut server: ResMut<RenetServer>,
-    mut server_msg: MessageReader<ServerEvent>,
     app_state: Res<State<AppState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    for msg in server_msg.read() {
-        match msg {
-            ServerEvent::ClientConnected {
-                client_id,
-            } => {
-                println!("Client {client_id} connected");
-            },
-            ServerEvent::ClientDisconnected {
-                client_id,
-                reason,
-            } => {
-                println!("Client {client_id} disconnected. Reason: {reason}.");
+    match **event {
+        ServerEvent::ClientConnected {
+            client_id,
+        } => {
+            println!("Client {client_id} connected");
+        },
+        ServerEvent::ClientDisconnected {
+            client_id,
+            reason,
+        } => {
+            println!("Client {client_id} disconnected. Reason: {reason}.");
 
-                if *app_state == AppState::Game {
-                    next_game_state.set(GameState::GameMenu);
-                }
-            },
-        }
+            if *app_state == AppState::Game {
+                next_game_state.set(GameState::GameMenu);
+            }
+        },
+    }
 
-        if *app_state != AppState::Game {
-            let n_players = server.clients_id().len() + 1;
+    if *app_state != AppState::Game {
+        let n_players = server.clients_id().len() + 1;
 
-            // Update the number of players in the lobby
-            let message = encode_to_vec(ServerMessage::NPlayers(n_players), standard()).unwrap();
-            server.broadcast_message(DefaultChannel::ReliableOrdered, message);
+        // Update the number of players in the lobby
+        let message = encode_to_vec(ServerMessage::NPlayers(n_players), standard()).unwrap();
+        server.broadcast_message(DefaultChannel::ReliableOrdered, message);
 
-            if let Ok(mut text) = n_players_q.single_mut() {
-                if n_players == 1 {
-                    text.0 = format!("Waiting for other players to join {}...", local_ip());
-                    next_app_state.set(AppState::Lobby);
-                } else {
-                    text.0 = format!("There are {n_players} players in the lobby.\nWaiting for other players to join {}...", local_ip());
-                    next_app_state.set(AppState::ConnectedLobby);
-                }
+        if let Ok(mut text) = n_players_q.single_mut() {
+            if n_players == 1 {
+                text.0 = format!("Waiting for other players to join {}...", local_ip());
+                next_app_state.set(AppState::Lobby);
+            } else {
+                text.0 = format!("There are {n_players} players in the lobby.\nWaiting for other players to join {}...", local_ip());
+                next_app_state.set(AppState::ConnectedLobby);
             }
         }
     }

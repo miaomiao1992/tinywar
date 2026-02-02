@@ -12,7 +12,7 @@ use crate::core::units::units::UnitName;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 #[cfg(not(target_arch = "wasm32"))]
-use bevy_renet::renet::RenetServer;
+use bevy_renet::RenetServer;
 use bevy_tweening::{PlaybackState, TweenAnim};
 use strum::IntoEnumIterator;
 

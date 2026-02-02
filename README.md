@@ -1,6 +1,6 @@
 <div align="center">
 
-# Tiny War
+# TinyWar
 ### A Rust-powered auto-battler game with solo and multiplayer modes
 
 <br><br>
@@ -20,7 +20,7 @@ Players can queue up units to spawn, decide which path(s) the units should take,
 select from a variety of boosts to help their units win the battle. Remember! If your
 base is destroyed, you lose the game.
 
-### Combat
+## ⚔️ Combat
 
 Units automatically attack enemy units that are in range. A unit can only attack 
 one other unit at the same time, and won't change targets until the enemy has died 
@@ -54,7 +54,7 @@ The damage calculation happens as follows:
 4. Lastly, subtract the damage from the defender's health:  
    `Defender::Health -= Total_Damage`
 
-### Boosts
+## ⚡ Boosts
 
 Boosts are power-ups that players can use during the game to enhance their units.
 Every 30 seconds, a player can choose from 3 boosts. Selected boosts become available
@@ -71,7 +71,7 @@ A player can have a maximum of 4 boosts selected/activated at the same time. If 
 player already has 4 boosts when the selection phase starts, they lose the chance to
 select a new one.
 
-## Key bindings
+## ⌨️ Key bindings
 
 - `escape`: Enter/exit the in-game menu.
 - `w-a-s-d`: Move the map.

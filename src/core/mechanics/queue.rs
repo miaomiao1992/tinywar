@@ -85,10 +85,14 @@ pub fn queue_resolve(
                     spawns.push((i, queue.unit));
                 }
             } else if player.is_human() {
+                if !player.can_queue(player.queue_default) {
+                    player.queue_default = UnitName::default();
+                }
                 queue_unit_msg.write(QueueUnitMsg::new(player.id, player.queue_default));
             } else {
                 // Spawn units randomly with inverse probability to their spawning time
-                let units: Vec<UnitName> = UnitName::iter().collect();
+                let units: Vec<UnitName> =
+                    UnitName::iter().filter(|u| player.can_queue(*u)).collect();
                 let weights: Vec<f64> =
                     units.iter().map(|u| 1.0 / u.spawn_duration() as f64).collect();
 

@@ -3,7 +3,7 @@ use crate::core::constants::*;
 use crate::core::map::map::Path;
 use crate::core::map::systems::MapCmp;
 use crate::core::map::utils::SpriteFrameLens;
-use crate::core::mechanics::combat::Arrow;
+use crate::core::mechanics::combat::{Arrow, Projectile};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::core::multiplayer::EntityMap;
 use crate::core::player::Players;
@@ -63,6 +63,7 @@ impl SpawnUnitMsg {
 #[derive(Message)]
 pub struct SpawnArrowMsg {
     pub color: PlayerColor,
+    pub projectile: Projectile,
     pub damage: f32,
     pub start: Vec2,
     pub destination: Vec2,
@@ -236,15 +237,15 @@ pub fn spawn_arrow_message(
         let id = commands
             .spawn((
                 Sprite {
-                    image: assets.image("arrow"),
+                    image: assets.image(msg.projectile.to_lowername()),
                     ..default()
                 },
                 Transform {
                     translation: msg.start.extend(ARROW_Z),
-                    rotation: Quat::from_rotation_z(FRAC_PI_4),
+                    rotation: Quat::from_rotation_z(FRAC_PI_4 + msg.projectile.angle()),
                     scale: Vec3::splat(UNIT_SCALE),
                 },
-                Arrow::new(msg.color, msg.damage, msg.start, msg.destination),
+                Arrow::new(msg.color, msg.projectile, msg.damage, msg.start, msg.destination),
                 MapCmp,
             ))
             .id();

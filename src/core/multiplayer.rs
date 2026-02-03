@@ -160,6 +160,7 @@ pub fn update_population_message(
             } else {
                 spawn_arrow_msg.write(SpawnArrowMsg {
                     color: a.color,
+                    projectile: a.projectile,
                     damage: a.damage,
                     start: a.start,
                     destination: a.destination,

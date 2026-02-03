@@ -72,7 +72,6 @@ fn move_unit(
         if let Some(units) = unit_pos.get(&tile) {
             for (other_e, other_pos, other) in units {
                 let delta = unit_t.translation - other_pos;
-                let delta_norm = delta.normalize();
                 let dist = delta.length();
 
                 // Skip if self or too far to interact
@@ -97,45 +96,25 @@ fn move_unit(
                             && other.on_building.is_none()
                             && !player.has_boost(Boost::NoCollision)
                         {
+                            // Handle units at exactly the same position
+                            let delta_norm = if dist == 0. {
+                                // Use a deterministic direction based on entity to ensure consistent separation
+                                let angle = ((unit_e.to_bits() ^ other_e.to_bits()) as f32) * 2.5;
+                                Vec3::new(angle.cos(), angle.sin(), 0.)
+                            } else {
+                                delta.normalize()
+                            };
+
                             let strength = (SEPARATION_RADIUS - dist).powi(3) / (SEPARATION_RADIUS);
 
                             // Calculate a "sideways" vector (perpendicular to movement)
                             let perpendicular = Vec3::new(-target_delta.y, target_delta.x, 0.);
 
                             // Determine which side of the path the other unit is on
-                            let natural_sign = if delta_norm.dot(perpendicular) >= 0. {
+                            let sign = if delta_norm.dot(perpendicular) >= 0. {
                                 1.
                             } else {
                                 -1.
-                            };
-
-                            // Check if the natural direction is blocked by checking for units on that side
-                            let check_pos = unit_t.translation
-                                + perpendicular * natural_sign * SEPARATION_RADIUS * 0.5;
-                            let check_tile = Map::world_to_tile(&check_pos);
-
-                            let mut blocked = false;
-                            'block: for check_t in get_tiles_at_distance(&check_tile, 1) {
-                                if let Some(units) = unit_pos.get(&check_t) {
-                                    for (check_e, check_pos, check_unit) in units {
-                                        if *check_e != unit_e
-                                            && *check_e != *other_e
-                                            && check_unit.on_building.is_none()
-                                            && unit_t.translation.distance(*check_pos)
-                                                < SEPARATION_RADIUS
-                                        {
-                                            blocked = true;
-                                            break 'block;
-                                        }
-                                    }
-                                }
-                            }
-
-                            // If blocked, flip to the other side
-                            let sign = if blocked {
-                                -natural_sign
-                            } else {
-                                natural_sign
                             };
 
                             // Apply force: mostly perpendicular to bypass, slightly away to avoid collision
@@ -295,7 +274,7 @@ fn move_arrow(
     let velocity = next_pos - arrow_t.translation.truncate();
     if velocity.length() > 0.01 {
         let angle = velocity.y.atan2(velocity.x);
-        arrow_t.rotation = Quat::from_rotation_z(angle);
+        arrow_t.rotation = Quat::from_rotation_z(angle + arrow.projectile.angle());
     }
 }
 

@@ -6,7 +6,7 @@ use crate::core::map::systems::MapCmp;
 use crate::core::map::ui::systems::UiCmp;
 use crate::core::map::utils::UiScaleLens;
 use crate::core::menu::utils::{add_root_node, add_text};
-use crate::core::player::{Players, SelectedBoost};
+use crate::core::player::{Player, Players, SelectedBoost};
 use crate::core::settings::{GameMode, Settings};
 use crate::core::states::GameState;
 use crate::core::units::buildings::Building;
@@ -33,24 +33,22 @@ pub fn setup_boost_selection(
     play_audio_ev.write(PlayAudioMsg::new("message"));
 
     // The possible boosts to select are those that aren't drained nor in the current selected list
-    let boosts = Boost::iter()
-        .filter(|b| {
-            b.condition(building_q.iter().filter(|b| b.color == players.me.color))
-                && !players.me.boosts.iter().map(|b| b.name).contains(b)
-        })
-        .choose_multiple(&mut rng(), 3);
-
-    // Select a random boost for the NPC and activate it immediately
-    let enemy_boost = if settings.game_mode == GameMode::SinglePlayer {
+    let boosts = |p: &Player, q: &Query<&Building>| -> Vec<Boost> {
         Boost::iter()
             .filter(|b| {
-                b.condition(building_q.iter().filter(|b| b.color == players.enemy.color))
-                    && !players.enemy.boosts.iter().map(|b| b.name).contains(b)
+                b.condition(q.iter().filter(|b| b.color == players.me.color), p)
+                    && !p.boosts.iter().map(|b| b.name).contains(b)
             })
-            .choose(&mut rng())
-            .unwrap()
+            .collect()
+    };
+
+    let own_boosts = boosts(&players.me, &building_q).into_iter().choose_multiple(&mut rng(), 3);
+
+    // Select a random boost for the NPC
+    let enemy_boost = if settings.game_mode == GameMode::SinglePlayer {
+        boosts(&players.enemy, &building_q).into_iter().choose(&mut rng()).unwrap()
     } else {
-        Boost::ArmorGain // Random boost never used
+        Boost::ArmorGain // Random boost (never used)
     };
 
     commands.spawn((add_root_node(false), CardCmp, MapCmp)).with_children(|parent| {
@@ -66,7 +64,7 @@ pub fn setup_boost_selection(
                 ..default()
             })
             .with_children(|parent| {
-                for boost in boosts.into_iter() {
+                for boost in own_boosts.into_iter() {
                     parent.spawn((Node {
                                 width: Val::Percent(23.),
                                 height: Val::Percent(100.),

@@ -141,7 +141,7 @@ impl Player {
             direction: PlayerDirection::default(),
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
-            boosts: vec![],
+            boosts: vec![SelectedBoost::new(Boost::QueueSharks)],
         }
     }
 
@@ -151,6 +151,14 @@ impl Player {
 
     pub fn has_boost(&self, boost: Boost) -> bool {
         self.boosts.iter().any(|b| b.name == boost && b.active)
+    }
+
+    pub fn can_queue(&self, unit: UnitName) -> bool {
+        unit.is_basic_unit()
+            || (unit == UnitName::Hammerhead && self.has_boost(Boost::QueueHammerheads))
+            || (unit == UnitName::Shark && self.has_boost(Boost::QueueSharks))
+            || (unit == UnitName::Skull && self.has_boost(Boost::QueueSkulls))
+            || (unit == UnitName::Turtle && self.has_boost(Boost::QueueTurtles))
     }
 }
 

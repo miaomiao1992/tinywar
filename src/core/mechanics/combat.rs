@@ -10,6 +10,7 @@ use crate::core::units::units::{Action, Unit, UnitName};
 use bevy::prelude::*;
 use bevy_tweening::CycleCompletedEvent;
 use serde::{Deserialize, Serialize};
+use std::f32::consts::FRAC_PI_4;
 use std::time::Duration;
 
 #[derive(Component, Deref, DerefMut)]
@@ -21,9 +22,25 @@ impl Default for BuildingDestroyCmp {
     }
 }
 
-#[derive(Component, Clone, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum Projectile {
+    Arrow,
+    Harpoon,
+}
+
+impl Projectile {
+    pub fn angle(&self) -> f32 {
+        match self {
+            Projectile::Arrow => 0.,
+            Projectile::Harpoon => -FRAC_PI_4,
+        }
+    }
+}
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Arrow {
     pub color: PlayerColor,
+    pub projectile: Projectile,
     pub damage: f32,
     pub start: Vec2,
     pub destination: Vec2,
@@ -36,9 +53,16 @@ impl Arrow {
     pub const SPEED: f32 = 160.;
     pub const ON_GROUND_SECS: u64 = 2;
 
-    pub fn new(color: PlayerColor, damage: f32, start: Vec2, destination: Vec2) -> Self {
+    pub fn new(
+        color: PlayerColor,
+        projectile: Projectile,
+        damage: f32,
+        start: Vec2,
+        destination: Vec2,
+    ) -> Self {
         Arrow {
             color,
+            projectile,
             damage,
             start,
             destination,
@@ -93,7 +117,7 @@ fn calculate_damage(
         };
     let effective_mr = magic_resist - unit.name.magic_pen();
 
-    let mitigate = |dmg, def| dmg * (100. / (100. + def));
+    let mitigate = |dmg, def| dmg * (10. / (10. + def));
 
     let physical_taken = mitigate(attack_damage, effective_armor);
     let magical_taken = mitigate(magic_damage, effective_mr);
@@ -103,7 +127,7 @@ fn calculate_damage(
     damage *= match unit.name {
         UnitName::Warrior if attacker.has_boost(Boost::Warrior) => 1.5,
         UnitName::Lancer if attacker.has_boost(Boost::Lancer) => 1.6,
-        UnitName::Archer if attacker.has_boost(Boost::ArmorGain) => 1.3,
+        UnitName::Archer if attacker.has_boost(Boost::Arrows) => 1.3,
         UnitName::Priest if attacker.has_boost(Boost::Meditation) => 1.7,
         _ => 1.,
     };
@@ -161,10 +185,11 @@ pub fn resolve_attack(
                         let damage =
                             calculate_damage(unit, armor, mr, is_building, attacker, defender);
 
-                        if unit.name == UnitName::Archer {
-                            // Archers don't apply damage but spawn arrows at the end of the animation
+                        if let Some(projectile) = unit.name.projectile() {
+                            // These units don't apply damage but spawn projectiles at the end of the animation
                             spawn_arrow_msg.write(SpawnArrowMsg {
                                 color: unit.color,
+                                projectile,
                                 damage,
                                 start: Vec2::new(
                                     unit_t.translation.x

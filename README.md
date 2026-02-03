@@ -45,8 +45,8 @@ The damage calculation happens as follows:
    `Defender_Magic_Resist = max(0, Defender.Magic_Resist - Attacker.Magic_Penetration)`
 
 2. Calculate damage mitigation using the effective defense stats:  
-   `Physical_Damage = Attacker::Physical_Damage * (100 / (100 + Defender_Armor))`  
-   `Magic_Damage = Attacker::Magic_Damage * (100 / (100 + Defender_Magic_Resist))`
+   `Physical_Damage = Attacker::Physical_Damage * (10 / (10 + Defender_Armor))`  
+   `Magic_Damage = Attacker::Magic_Damage * (10 / (10 + Defender_Magic_Resist))`
 
 3. Calculate final damage applied on the defender (always minimum 5):  
    `Total_Damage = max(5, Physical_Damage + Magic_Damage)`

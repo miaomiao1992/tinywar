@@ -1,15 +1,15 @@
 use crate::core::audio::PlayAudioMsg;
 use crate::core::constants::MAX_BOOSTS;
-use crate::core::map::map::Map;
+use crate::core::map::map::{Map, Path};
 use crate::core::mechanics::spawn::{DespawnMsg, SpawnBuildingMsg, SpawnUnitMsg};
 use crate::core::menu::systems::Host;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::core::network::{ClientMessage, ClientSendMsg, ServerMessage, ServerSendMsg};
-use crate::core::player::{Players, SelectedBoost, Side};
+use crate::core::player::{Player, Players, SelectedBoost, Side};
 use crate::core::settings::{GameMode, PlayerColor, Settings};
 use crate::core::states::GameState;
 use crate::core::units::buildings::{Building, BuildingName};
-use crate::core::units::units::{Unit, UnitName};
+use crate::core::units::units::{Action, Unit, UnitName};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::TilePos;
@@ -51,6 +51,8 @@ pub enum Boost {
     Castle,
     Clone,
     Conversion,
+    ConvertHammerheads,
+    ConvertSharks,
     DoubleQueue,
     Frozen,
     InstantHealing,
@@ -63,11 +65,18 @@ pub enum Boost {
     Meditation,
     NoCollision,
     Penetration,
+    QueueHammerheads,
+    QueueSharks,
+    QueueSkulls,
+    QueueTurtles,
     Repair,
     Respawn,
     Run,
+    SharkTower,
     Siege,
     SpawnTime,
+    SpawnSkulls,
+    SpawnTurtles,
     Tower,
     Warrior,
 }
@@ -83,6 +92,8 @@ impl Boost {
             Boost::Castle => "Upgrade your base to a castle.",
             Boost::Clone => "Clones 8 random units of yours (in position).",
             Boost::Conversion => "Converts 5 random enemy units to your side.",
+            Boost::ConvertHammerheads => "Transforms all your lancers into hammerheads.",
+            Boost::ConvertSharks => "Transforms all your ground archers into sharks.",
             Boost::DoubleQueue => "Two units are queued at the same time.",
             Boost::Frozen => "All enemy units who aren't attacking stop their movement.",
             Boost::InstantHealing => "Instantly heal all your units to their maximum health.",
@@ -95,20 +106,38 @@ impl Boost {
             Boost::Meditation => "Your priest's healing is 70% stronger.",
             Boost::NoCollision => "Your units don't collide with each other.",
             Boost::Penetration => "Increase the armor penetration of all your units with 5 points.",
+            Boost::QueueHammerheads => "Allow to add hammerheads to the queue.",
+            Boost::QueueSharks => "Allow to add sharks to the queue.",
+            Boost::QueueSkulls => "Allow to add skulls to the queue.",
+            Boost::QueueTurtles => "Allow to add turtles to the queue.",
             Boost::Repair => "Instantly repair all your buildings to their maximum health.",
             Boost::Respawn => "Respawn all dead units on buildings.",
             Boost::Run => "Increase the speed of all your units by 100%.",
+            Boost::SharkTower => "Convert all your units on buildings into sharks.",
             Boost::Siege => "Increase all damage to buildings by 50%.",
             Boost::SpawnTime => "Reduce all spawning times by 20%.",
+            Boost::SpawnSkulls => "Spawn 15 skulls.",
+            Boost::SpawnTurtles => "Spawn 3 turtles, each towards a path.",
             Boost::Tower => "Spawn a defense tower near the base.",
             Boost::Warrior => "Increase your warrior's damage by 50%.",
         }
     }
 
-    pub fn condition<'a>(&self, mut buildings: impl Iterator<Item = &'a Building>) -> bool {
+    pub fn condition<'a>(
+        &self,
+        mut buildings: impl Iterator<Item = &'a Building>,
+        player: &Player,
+    ) -> bool {
         match self {
             Boost::Castle => !buildings.any(|b| b.name == BuildingName::Castle),
             Boost::Tower => buildings.filter(|b| b.name == BuildingName::Tower).count() < 2,
+            Boost::QueueHammerheads
+            | Boost::QueueSharks
+            | Boost::QueueSkulls
+            | Boost::QueueTurtles => {
+                UnitName::iter().filter(|u| player.can_queue(*u)).count()
+                    == UnitName::iter().filter(|u| u.is_basic_unit()).count()
+            },
             _ => true,
         }
     }
@@ -129,6 +158,10 @@ impl Boost {
             Boost::Meditation => 40,
             Boost::NoCollision => 20,
             Boost::Penetration => 30,
+            Boost::QueueHammerheads => 50,
+            Boost::QueueSharks => 50,
+            Boost::QueueSkulls => 50,
+            Boost::QueueTurtles => 50,
             Boost::Run => 15,
             Boost::Siege => 10,
             Boost::SpawnTime => 50,
@@ -158,8 +191,10 @@ pub fn check_boost_timer(
             GameMode::SinglePlayer if me_full => {
                 let boost = Boost::iter()
                     .filter(|b| {
-                        b.condition(building_q.iter().filter(|b| b.color == players.enemy.color))
-                            && !players.enemy.boosts.iter().map(|b| b.name).contains(b)
+                        b.condition(
+                            building_q.iter().filter(|b| b.color == players.enemy.color),
+                            &players.enemy,
+                        ) && !players.enemy.boosts.iter().map(|b| b.name).contains(b)
                     })
                     .choose(&mut rng())
                     .unwrap();
@@ -179,7 +214,7 @@ pub fn update_boosts(settings: Res<Settings>, mut players: ResMut<Players>, time
         player.boosts.retain_mut(|boost| {
             if boost.active {
                 boost.timer.tick(scale_duration(time.delta(), settings.speed));
-                return !boost.timer.just_finished();
+                return !boost.timer.remaining().is_zero();
             }
             true
         });
@@ -187,7 +222,7 @@ pub fn update_boosts(settings: Res<Settings>, mut players: ResMut<Players>, time
 }
 
 pub fn activate_boost_message(
-    mut unit_q: Query<(&Transform, &mut Unit)>,
+    mut unit_q: Query<(&Transform, &mut Sprite, &mut Unit)>,
     mut building_q: Query<(Entity, &Transform, &mut Building)>,
     host: Option<Res<Host>>,
     players: Res<Players>,
@@ -238,9 +273,9 @@ pub fn activate_boost_message(
                     }
                 },
                 Boost::Clone => {
-                    for (unit_t, unit) in unit_q
+                    for (unit_t, _, unit) in unit_q
                         .iter()
-                        .filter(|(_, u)| u.color == player.color && u.on_building.is_none())
+                        .filter(|(_, _, u)| u.color == player.color && u.on_building.is_none())
                         .choose_multiple(&mut rng, 8)
                     {
                         spawn_unit_msg.write(SpawnUnitMsg {
@@ -254,24 +289,44 @@ pub fn activate_boost_message(
                     }
                 },
                 Boost::Conversion => {
-                    for (_, mut u) in unit_q
+                    for (_, _, mut u) in unit_q
                         .iter_mut()
-                        .filter(|(_, u)| u.color != player.color)
+                        .filter(|(_, _, u)| u.color != player.color)
                         .choose_multiple(&mut rng, 5)
                     {
                         u.color = player.color;
                     }
                 },
+                Boost::ConvertHammerheads => {
+                    for (_, mut s, mut u) in unit_q
+                        .iter_mut()
+                        .filter(|(_, _, u)| u.color == player.color && u.name == UnitName::Lancer)
+                    {
+                        s.custom_size = Some(Vec2::splat(UnitName::Hammerhead.size()));
+                        u.name = UnitName::Hammerhead;
+                        u.action = Action::default();
+                    }
+                },
+                Boost::ConvertSharks => {
+                    for (_, _, mut u) in unit_q.iter_mut().filter(|(_, _, u)| {
+                        u.color == player.color
+                            && u.name == UnitName::Archer
+                            && u.on_building.is_none()
+                    }) {
+                        u.name = UnitName::Shark;
+                        u.action = Action::default();
+                    }
+                },
                 Boost::InstantHealing => unit_q
                     .iter_mut()
-                    .filter(|(_, u)| u.color == player.color)
-                    .for_each(|(_, mut u)| u.health = u.name.health()),
+                    .filter(|(_, _, u)| u.color == player.color)
+                    .for_each(|(_, _, mut u)| u.health = u.name.health()),
                 Boost::InstantArmy => {
                     for unit in UnitName::iter().choose_multiple(&mut rng, 6) {
                         spawn_unit_msg.write(SpawnUnitMsg::new(player.color, unit));
                     }
                 },
-                Boost::Lightning => unit_q.iter_mut().for_each(|(_, mut u)| u.health *= 0.5),
+                Boost::Lightning => unit_q.iter_mut().for_each(|(_, _, mut u)| u.health *= 0.5),
                 Boost::Repair => building_q
                     .iter_mut()
                     .filter(|(_, _, b)| b.color == player.color)
@@ -279,7 +334,7 @@ pub fn activate_boost_message(
                 Boost::Respawn => {
                     let current_positions: Vec<Vec2> = unit_q
                         .iter()
-                        .filter_map(|(t, u)| {
+                        .filter_map(|(t, _, u)| {
                             (u.color == player.color && u.on_building.is_some())
                                 .then_some(t.translation.truncate())
                         })
@@ -298,6 +353,32 @@ pub fn activate_boost_message(
                                 });
                             }
                         }
+                    }
+                },
+                Boost::SharkTower => {
+                    unit_q
+                        .iter_mut()
+                        .filter(|(_, _, u)| u.color == player.color && u.on_building.is_some())
+                        .for_each(|(_, _, mut u)| {
+                            u.name = UnitName::Shark;
+                            u.action = Action::default();
+                        });
+                },
+                Boost::SpawnSkulls => {
+                    for _ in 0..15 {
+                        spawn_unit_msg.write(SpawnUnitMsg::new(player.color, UnitName::Skull));
+                    }
+                },
+                Boost::SpawnTurtles => {
+                    for path in Path::iter() {
+                        spawn_unit_msg.write(SpawnUnitMsg {
+                            color: player.color,
+                            unit: UnitName::Turtle,
+                            position: None,
+                            on_building: None,
+                            path: Some(path),
+                            entity: None,
+                        });
                     }
                 },
                 Boost::Tower => {

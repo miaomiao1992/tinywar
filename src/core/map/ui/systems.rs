@@ -59,15 +59,27 @@ pub struct HoverBoxBoostCmp;
 pub struct HoverBoxBoostLabelCmp;
 
 #[derive(Component)]
-pub struct ShopButtonCmp(pub UnitName);
+pub struct ShopButtonCmp {
+    pub unit: UnitName,
+    pub is_basic: bool,
+}
 
-#[derive(Component)]
+impl ShopButtonCmp {
+    pub fn new(unit: UnitName, is_basic: bool) -> Self {
+        Self {
+            unit,
+            is_basic,
+        }
+    }
+}
+
+#[derive(Component, Deref)]
 pub struct ShopLabelCmp(pub UnitName);
 
 #[derive(Component, Deref)]
 pub struct SwordQueueCmp(pub usize);
 
-#[derive(Component)]
+#[derive(Component, Deref)]
 pub struct QueueButtonCmp(pub usize);
 
 #[derive(Component)]
@@ -285,6 +297,9 @@ pub fn draw_ui(
                                                 if !boost.active {
                                                     boost.active = true;
                                                     activate_boost_msg.write(ActivateBoostMsg::new(boost.name, color));
+                                                } else {
+                                                    // Finish the boost early
+                                                    boost.timer.finish();
                                                 }
                                             }
                                         }
@@ -334,7 +349,7 @@ pub fn draw_ui(
             },
         );
 
-    // Draw units
+    // Draw shop
     let texture = assets.texture("small ribbons");
     commands
         .spawn((
@@ -342,7 +357,7 @@ pub fn draw_ui(
                 top: Val::Percent(12.),
                 left: Val::Percent(2.),
                 width: Val::Percent(7.),
-                height: Val::Percent(70.),
+                height: Val::Percent(75.),
                 position_type: PositionType::Absolute,
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
@@ -388,8 +403,13 @@ pub fn draw_ui(
                     ..default()
                 })
                 .with_children(|parent| {
-                    for unit in UnitName::iter() {
+                    for unit in UnitName::iter().filter(|u| u.is_basic_unit()).chain([UnitName::Turtle]) {
                         parent.spawn((Node {
+                                display: if unit.is_basic_unit() {
+                                    Display::Flex
+                                } else {
+                                    Display::None
+                                },
                                 width: Val::Percent(100.),
                                 aspect_ratio: Some(1.),
                                 ..default()
@@ -399,7 +419,7 @@ pub fn draw_ui(
                                 players.me.color.to_name(),
                                 unit.to_name()
                             ))),
-                            ShopButtonCmp(unit),
+                            ShopButtonCmp::new(unit, unit.is_basic_unit()),
                             children![
                                 (
                                     Node {
@@ -549,8 +569,8 @@ pub fn draw_ui(
                              mut queue_unit_msg: MessageWriter<QueueUnitMsg>,
                              mut play_audio_msg: MessageWriter<PlayAudioMsg>| {
                                 if event.button == PointerButton::Primary {
-                                    let unit = btn_q.get(event.entity).unwrap().0;
-                                    queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit));
+                                    let button = btn_q.get(event.entity).unwrap();
+                                    queue_unit_msg.write(QueueUnitMsg::new(players.me.id, button.unit));
                                     play_audio_msg.write(PlayAudioMsg::new("button"));
                                 }
                             },
@@ -653,7 +673,7 @@ pub fn draw_ui(
                                     // Remove unit from queue if clicked
                                     if event.button == PointerButton::Primary {
                                         if let Ok(button) = btn_q.get(event.entity) {
-                                            players.me.queue.remove(button.0);
+                                            players.me.queue.remove(**button);
                                         }
                                     }
                                 },
@@ -686,12 +706,16 @@ pub fn draw_ui(
     ));
 }
 
-/// Updates the advance banner and shop labels
+/// Updates the advance banner, shop and direction
 pub fn update_ui(
     unit_q: Query<(&Transform, &Unit)>,
     mut direction_q: Query<&mut ImageNode, With<DirectionCmp>>,
     mut advance_q: Query<(Entity, &mut Node, &AdvanceBannerCmp)>,
     mut text_q: Query<&mut Text, With<TextAdvanceBannerCmp>>,
+    mut btn_q: Query<
+        (&mut Node, &mut ImageNode, &mut ShopButtonCmp),
+        (Without<DirectionCmp>, Without<AdvanceBannerCmp>),
+    >,
     mut label_q: Query<(&mut Text, &ShopLabelCmp), Without<TextAdvanceBannerCmp>>,
     children_q: Query<&Children>,
     players: Res<Players>,
@@ -747,8 +771,22 @@ pub fn update_ui(
         }
     }
 
+    // Update the shop
+    if let Some((mut node, mut image, mut btn)) = btn_q.iter_mut().find(|(_, _, b)| !b.is_basic) {
+        node.display = if let Some(unit) =
+            UnitName::iter().find(|u| !u.is_basic_unit() && players.me.can_queue(*u))
+        {
+            image.image =
+                assets.image(format!("{}-{}", players.me.color.to_name(), unit.to_name()));
+            btn.unit = unit;
+            Display::Flex
+        } else {
+            Display::None
+        }
+    }
+
     for (mut text, label) in label_q.iter_mut() {
-        text.0 = counts.get(&label.0).unwrap_or(&0).to_string();
+        text.0 = counts.get(&*label).unwrap_or(&0).to_string();
     }
 
     // Update the direction

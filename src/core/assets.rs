@@ -121,6 +121,7 @@ impl FromWorld for WorldAssets {
             ("large ribbons", assets.load("images/ui/large ribbons.png")),
             // Units
             ("arrow", assets.load("images/units/arrow.png")),
+            ("harpoon", assets.load("images/units/harpoon.png")),
             // Effects
             ("heal", assets.load("images/effects/heal.png")),
             ("explosion1", assets.load("images/effects/explosion1.png")),
@@ -165,13 +166,25 @@ impl FromWorld for WorldAssets {
 
                 images.insert(
                     name,
-                    assets.load(format!("images/units/{}/{}.png", color.to_name(), unit.to_name())),
+                    assets.load(format!(
+                        "images/units/{}/{}.png",
+                        if unit.is_basic_unit() {
+                            color.to_name()
+                        } else {
+                            format!("Monsters/{}", unit.to_name())
+                        },
+                        unit.to_name()
+                    )),
                 );
 
                 for action in ActionKind::iter() {
                     let path = format!(
                         "assets/images/units/{}/{}_{}.png",
-                        color.to_name(),
+                        if unit.is_basic_unit() {
+                            color.to_name()
+                        } else {
+                            format!("Monsters/{}", unit.to_name())
+                        },
                         unit.to_name(),
                         action.to_name()
                     );

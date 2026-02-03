@@ -70,7 +70,6 @@ bevy_ecs_tiled = { version = "0.11.2", features = ["wasm"] }
 getrandom_v2 = { package = "getrandom", version = "0.2.17", features = ["js"] }
 getrandom_v3 = { package = "getrandom", version = "0.3.4", features = ["wasm_js"] }
 
-
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1

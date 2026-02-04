@@ -259,7 +259,7 @@ impl UnitName {
             UnitName::Minotaur => 200.,
             UnitName::Shark => 60.,
             UnitName::Skull => 60.,
-            UnitName::Snake => 30.,
+            UnitName::Snake => 45.,
             UnitName::Spider => 100.,
             UnitName::Turtle => 350.,
         }
@@ -334,6 +334,7 @@ impl UnitName {
             UnitName::Hammerhead => 8.,
             UnitName::Minotaur => 10.,
             UnitName::Shark => 5.,
+            UnitName::Spider => 3.,
             _ => 0.,
         }
     }

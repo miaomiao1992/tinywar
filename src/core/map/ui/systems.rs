@@ -455,10 +455,10 @@ pub fn draw_ui(
                                     top: Val::Percent(-140.),
                                     left: Val::Percent(80.),
                                     width: Val::Percent(600.),
-                                    height: Val::Percent(650.),
+                                    height: Val::Percent(700.),
                                     position_type: PositionType::Absolute,
                                     flex_direction: FlexDirection::Column,
-                                    padding: UiRect::all(Val::Percent(70.)),
+                                    padding: UiRect::all(Val::Percent(75.)),
                                     ..default()
                                 },
                                 ImageNode::new(assets.image("banner")),
@@ -473,7 +473,7 @@ pub fn draw_ui(
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
                                         flex_direction: FlexDirection::Column,
-                                        margin: UiRect::ZERO.with_bottom(Val::Percent(5.)),
+                                        margin: UiRect::ZERO.with_bottom(Val::Percent(4.)),
                                         ..default()
                                     })
                                     .with_children(|parent| {

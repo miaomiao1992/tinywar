@@ -29,7 +29,9 @@ use crate::core::map::systems::{draw_map, setup_end_game, MapCmp};
 use crate::core::map::ui::boosts::{setup_after_boost, setup_boost_selection};
 use crate::core::map::ui::systems::{draw_ui, update_ui, update_ui2, UiCmp};
 use crate::core::mechanics::combat::{apply_damage_message, resolve_attack, ApplyDamageMsg};
-use crate::core::mechanics::effects::{deferred_message, despawn_effects, effect_message, DeferredEffectMsg, EffectMsg};
+use crate::core::mechanics::effects::{
+    deferred_message, despawn_effects, effect_message, DeferredEffectMsg, EffectMsg,
+};
 use crate::core::mechanics::movement::apply_movement;
 use crate::core::mechanics::queue::*;
 use crate::core::mechanics::spawn::*;

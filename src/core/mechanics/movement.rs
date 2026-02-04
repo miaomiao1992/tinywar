@@ -23,11 +23,16 @@ fn get_tiles_at_distance(pos: &TilePos, d: u32) -> HashSet<TilePos> {
 
 /// Return the next tile to walk to, which is the one after the closest lane tile
 fn get_target_tile(tile: TilePos, path: &[TilePos]) -> TilePos {
+    let pos = Map::tile_to_world(tile);
     let closest = path
         .iter()
         .enumerate()
-        .min_by_key(|(_, t)| tile.x.abs_diff(t.x) + tile.y.abs_diff(t.y))
-        .map(|(i, _)| path.get(i + 1).unwrap_or(path.last().unwrap()))
+        .min_by(|(_, a), (_, b)| {
+            let da = Map::tile_to_world(**a).distance(pos);
+            let db = Map::tile_to_world(**b).distance(pos);
+            da.partial_cmp(&db).unwrap()
+        })
+        .and_then(|(i, _)| path.get(i + 1).or_else(|| path.last()))
         .unwrap();
 
     Map::find_path(tile, *closest)[1]

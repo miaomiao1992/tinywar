@@ -28,7 +28,7 @@ impl Lane {
 /// Metadata required to draw the map
 #[derive(Resource, Debug)]
 pub struct Map {
-    lanes: HashMap<Lane, Vec<TilePos>>,
+    pub lanes: HashMap<Lane, Vec<TilePos>>,
 }
 
 impl Default for Map {

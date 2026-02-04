@@ -231,6 +231,7 @@ pub fn activate_boost_message(
     mut building_q: Query<(Entity, &Transform, &mut Building)>,
     host: Option<Res<Host>>,
     players: Res<Players>,
+    map: Res<Map>,
     mut spawn_unit_msg: MessageWriter<SpawnUnitMsg>,
     mut spawn_building_msg: MessageWriter<SpawnBuildingMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
@@ -390,6 +391,30 @@ pub fn activate_boost_message(
                                 });
                             }
                         }
+                    }
+                },
+                b @ Boost::Snakes | b @ Boost::Spiders => {
+                    let (amount, unit) = match b {
+                        Boost::Snakes => (20, UnitName::Snake),
+                        Boost::Spiders => (10, UnitName::Spider),
+                        _ => unreachable!(),
+                    };
+
+                    for (lane, tile) in map
+                        .lanes
+                        .iter()
+                        .flat_map(|(l, v)| v[3..v.len() - 3].iter().map(|t| (*l, *t)))
+                        .choose_multiple(&mut rng, amount)
+                    {
+                        spawn_unit_msg.write(SpawnUnitMsg {
+                            color: player.color,
+                            unit,
+                            position: Some(Map::tile_to_world(tile)),
+                            on_building: None,
+                            lane: Some(lane),
+                            dust_effect: true,
+                            entity: None,
+                        });
                     }
                 },
                 Boost::SharkTower => {

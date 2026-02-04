@@ -190,9 +190,9 @@ impl Player {
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
             boosts: vec![
-                SelectedBoost::new(Boost::Clone),
+                SelectedBoost::new(Boost::Snakes),
                 SelectedBoost::new(Boost::Castle),
-                SelectedBoost::new(Boost::Tower),
+                SelectedBoost::new(Boost::Spiders),
             ],
         }
     }

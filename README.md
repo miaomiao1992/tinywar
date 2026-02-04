@@ -76,7 +76,7 @@ Boosts come in two flavors:
 
 A player can have a maximum of 4 boosts selected/activated at the same time. If a 
 player already has 4 boosts when the selection phase starts, they lose the chance to
-select a new one.
+select a new one. You can only see the enemy's active boosts.
 
 ## ⌨️ Key bindings
 

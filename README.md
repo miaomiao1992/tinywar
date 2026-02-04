@@ -15,10 +15,10 @@
 
 TinyWar is a fast-paced, real-time, auto-battler game, where players fight each other 
 on a small map, with the sole goal of destroying the enemy base. A never-ending horde 
-of units spawn from each base and walk down one of the three paths (top-mid-bot).
-Players can queue up units to spawn, decide which path(s) the units should take, and
-select from a variety of boosts to help their units win the battle. Remember! If your
-base is destroyed, you lose the game.
+of units spawn from each base and walk down one of the three lanes. Players can queue 
+up units to spawn, decide which lane(s) the units should take, and select from a variety 
+of boosts to help their units win the battle. Remember! If your base is destroyed, you 
+lose the game.
 
 ## ⚔️ Combat
 
@@ -54,6 +54,13 @@ The damage calculation happens as follows:
 4. Lastly, subtract the damage from the defender's health:  
    `Defender::Health -= Total_Damage`
 
+## ➡️ Lanes
+
+The map consists of three lanes (top/mid/bot) over which units can reach the enemy
+base. Players can select which lanes the spawning units will take. The current
+selection is displayed on the top left of the screen with arrows. Click on the image
+or use the arrow keys to change the selection.
+
 ## ⚡ Boosts
 
 Boosts are power-ups that players can use during the game to enhance their units.
@@ -80,5 +87,5 @@ select a new one.
 - `ctrl + left/right arrow`: Increase/decrease the game's speed (only if host).
 - `Q`: Toggle the audio settings.
 
-- Use the arrows to select which path(s) spawning units should take.
+- Use the arrows to select which [lanes](#lanes) spawning units should take.
 - Every unit has a key binding to add it to the queue.

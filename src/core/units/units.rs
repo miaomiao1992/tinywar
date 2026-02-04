@@ -1,6 +1,6 @@
 use crate::core::boosts::Boost;
 use crate::core::constants::UNIT_DEFAULT_SIZE;
-use crate::core::map::map::Path;
+use crate::core::map::map::Lane;
 use crate::core::mechanics::combat::Projectile;
 use crate::core::player::Player;
 use crate::core::settings::PlayerColor;
@@ -17,9 +17,13 @@ pub enum UnitName {
     Lancer,
     Archer,
     Priest,
+    Bear,
     Hammerhead,
+    Minotaur,
     Shark,
     Skull,
+    Snake,
+    Spider,
     Turtle,
 }
 
@@ -46,9 +50,17 @@ impl UnitName {
                 fragile support units are slow-moving and defenseless, but their powerful healing \
                 can turn the tide of battle. Priests do not attack."
             },
+            UnitName::Bear => {
+                "A massive forest bully that crushes enemies with its enormous, powerful claws. \
+                Bears are often summoned by priests to defend them in close combat."
+            },
             UnitName::Hammerhead => {
                 "A magical sea creature that strikes with a heavy oar, as surprising as it is \
                 lethal."
+            },
+            UnitName::Minotaur => {
+                "A giant magical brute with a giant hammer, delivering strikes with overwhelming \
+                force. Minotaurs are strong both in offense and defense."
             },
             UnitName::Shark => {
                 "A long-range magical predator that launches harpoons with deadly precision."
@@ -56,6 +68,12 @@ impl UnitName {
             UnitName::Skull => {
                 "Skulls are fragile units used primarily as fodder or to overwhelm enemies \
                 with in huge numbers."
+            },
+            UnitName::Snake => {
+                "A venomous serpent that strikes to infect its victims with deadly toxins."
+            },
+            UnitName::Spider => {
+                "A giant arachnid that bites and poisons its victims with every strike."
             },
             UnitName::Turtle => {
                 "Turtles are slow and have low damage, but are incredibly resilient. Their \
@@ -76,7 +94,8 @@ impl UnitName {
 
     pub fn size(&self) -> f32 {
         match self {
-            UnitName::Lancer | UnitName::Turtle => 320.,
+            UnitName::Lancer | UnitName::Minotaur | UnitName::Turtle => 320.,
+            UnitName::Bear => 256.,
             _ => UNIT_DEFAULT_SIZE,
         }
     }
@@ -86,50 +105,78 @@ impl UnitName {
             UnitName::Warrior => match action {
                 Action::Idle => 8,
                 Action::Run => 6,
+                Action::Guard => 6,
                 Action::Attack(_) => 8,
-                _ => unreachable!(),
+                _ => 0,
             },
             UnitName::Lancer => match action {
                 Action::Idle => 12,
                 Action::Run => 6,
                 Action::Attack(_) => 9,
-                _ => unreachable!(),
+                _ => 0,
             },
             UnitName::Archer => match action {
                 Action::Idle => 6,
                 Action::Run => 4,
                 Action::Attack(_) => 6, // Skip last 2 frames to spawn arrow at end of animation
-                _ => unreachable!(),
+                _ => 0,
             },
             UnitName::Priest => match action {
                 Action::Idle => 6,
                 Action::Run => 4,
                 Action::Heal(_) => 11,
-                _ => unreachable!(),
+                _ => 0,
+            },
+            UnitName::Bear => match action {
+                Action::Idle => 8,
+                Action::Run => 5,
+                Action::Attack(_) => 9,
+                _ => 0,
             },
             UnitName::Hammerhead => match action {
                 Action::Idle => 8,
                 Action::Run => 6,
                 Action::Attack(_) => 6,
-                _ => unreachable!(),
+                _ => 0,
+            },
+            UnitName::Minotaur => match action {
+                Action::Idle => 16,
+                Action::Run => 8,
+                Action::Guard => 11,
+                Action::Attack(_) => 12,
+                _ => 0,
             },
             UnitName::Shark => match action {
                 Action::Idle => 8,
                 Action::Run => 6,
                 Action::Attack(_) => 4, // Skip last 4 frames to spawn arrow at end of animation
-                _ => unreachable!(),
+                _ => 0,
             },
             UnitName::Skull => match action {
                 Action::Idle => 8,
                 Action::Run => 6,
+                Action::Guard => 7,
                 Action::Attack(_) => 7,
-                _ => unreachable!(),
+                _ => 0,
+            },
+            UnitName::Snake => match action {
+                Action::Idle => 8,
+                Action::Run => 8,
+                Action::Attack(_) => 6,
+                _ => 0,
+            },
+            UnitName::Spider => match action {
+                Action::Idle => 8,
+                Action::Run => 5,
+                Action::Attack(_) => 8,
+                _ => 0,
             },
             UnitName::Turtle => match action {
                 Action::Idle => 10,
                 Action::Run => 7,
+                Action::Guard => 6,
                 Action::Attack(_) => 10,
-                _ => unreachable!(),
+                _ => 0,
             },
         }
     }
@@ -139,11 +186,15 @@ impl UnitName {
     }
 
     pub fn can_attack(&self) -> bool {
-        !matches!(self, UnitName::Priest)
+        self.frames(Action::Attack(Entity::PLACEHOLDER)) > 0
+    }
+
+    pub fn can_guard(&self) -> bool {
+        self.frames(Action::Guard) > 0
     }
 
     pub fn is_melee(&self) -> bool {
-        self.range() == 1. || *self == Self::Priest
+        self.range() == 1.
     }
 
     pub fn spawn_duration(&self) -> u64 {
@@ -152,9 +203,13 @@ impl UnitName {
             UnitName::Lancer => 1800,
             UnitName::Archer => 3300,
             UnitName::Priest => 3400,
+            UnitName::Bear => 3400,
             UnitName::Hammerhead => 1900,
+            UnitName::Minotaur => 8900,
             UnitName::Shark => 3500,
             UnitName::Skull => 800,
+            UnitName::Snake => 500,
+            UnitName::Spider => 2500,
             UnitName::Turtle => 7500,
         }
     }
@@ -165,9 +220,13 @@ impl UnitName {
             UnitName::Lancer => 35.,
             UnitName::Archer => 25.,
             UnitName::Priest => 25.,
+            UnitName::Bear => 40.,
             UnitName::Hammerhead => 35.,
+            UnitName::Minotaur => 25.,
             UnitName::Shark => 25.,
             UnitName::Skull => 40.,
+            UnitName::Snake => 45.,
+            UnitName::Spider => 30.,
             UnitName::Turtle => 15.,
         }
     }
@@ -195,9 +254,13 @@ impl UnitName {
             UnitName::Lancer => 100.,
             UnitName::Archer => 60.,
             UnitName::Priest => 40.,
+            UnitName::Bear => 200.,
             UnitName::Hammerhead => 100.,
+            UnitName::Minotaur => 200.,
             UnitName::Shark => 60.,
             UnitName::Skull => 60.,
+            UnitName::Snake => 30.,
+            UnitName::Spider => 100.,
             UnitName::Turtle => 350.,
         }
     }
@@ -208,6 +271,7 @@ impl UnitName {
             UnitName::Lancer => 15.,
             UnitName::Archer => 10.,
             UnitName::Priest => -30., // This is the healing done (negative damage)
+            UnitName::Bear => 20.,
             UnitName::Skull => 8.,
             UnitName::Turtle => 5.,
             _ => 0.,
@@ -217,8 +281,11 @@ impl UnitName {
     pub fn magic_damage(&self) -> f32 {
         match self {
             UnitName::Hammerhead => 15.,
+            UnitName::Minotaur => 30.,
             UnitName::Shark => 10.,
             UnitName::Skull => 2.,
+            UnitName::Snake => 8.,
+            UnitName::Spider => 18.,
             UnitName::Turtle => 5.,
             _ => 0.,
         }
@@ -230,9 +297,13 @@ impl UnitName {
             UnitName::Lancer => 3.,
             UnitName::Archer => 1.,
             UnitName::Priest => 0.,
+            UnitName::Bear => 10.,
             UnitName::Hammerhead => 3.,
+            UnitName::Minotaur => 12.,
             UnitName::Shark => 0.,
             UnitName::Skull => 0.,
+            UnitName::Snake => 0.,
+            UnitName::Spider => 5.,
             UnitName::Turtle => 20.,
         }
     }
@@ -243,9 +314,13 @@ impl UnitName {
             UnitName::Lancer => 3.,
             UnitName::Archer => 0.,
             UnitName::Priest => 12.,
+            UnitName::Bear => 6.,
             UnitName::Hammerhead => 7.,
+            UnitName::Minotaur => 12.,
             UnitName::Shark => 2.,
             UnitName::Skull => 0.,
+            UnitName::Snake => 0.,
+            UnitName::Spider => 2.,
             UnitName::Turtle => 20.,
         }
     }
@@ -255,7 +330,9 @@ impl UnitName {
             UnitName::Warrior => 5.,
             UnitName::Lancer => 8.,
             UnitName::Archer => 2.,
+            UnitName::Bear => 9.,
             UnitName::Hammerhead => 8.,
+            UnitName::Minotaur => 10.,
             UnitName::Shark => 5.,
             _ => 0.,
         }
@@ -264,18 +341,21 @@ impl UnitName {
     pub fn magic_pen(&self) -> f32 {
         match self {
             UnitName::Hammerhead => 8.,
+            UnitName::Minotaur => 10.,
             UnitName::Shark => 5.,
+            UnitName::Spider => 3.,
             _ => 0.,
         }
     }
 }
 
-#[derive(EnumDiscriminants, Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(EnumDiscriminants, Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[strum_discriminants(name(ActionKind), derive(EnumIter))]
 pub enum Action {
     #[default]
     Idle,
     Run,
+    Guard,
     Attack(Entity),
     Heal(Entity),
 }
@@ -285,6 +365,7 @@ impl ActionKind {
         match self {
             ActionKind::Idle => Action::Idle,
             ActionKind::Run => Action::Run,
+            ActionKind::Guard => Action::Guard,
             ActionKind::Attack => Action::Attack(Entity::PLACEHOLDER),
             ActionKind::Heal => Action::Heal(Entity::PLACEHOLDER),
         }
@@ -297,7 +378,7 @@ pub struct Unit {
     pub color: PlayerColor,
     pub action: Action,
     pub health: f32,
-    pub path: Path,
+    pub lane: Lane,
     pub on_building: Option<Entity>,
 }
 
@@ -305,7 +386,7 @@ impl Unit {
     pub fn new(
         name: UnitName,
         player: &Player,
-        path: Option<Path>,
+        lane: Option<Lane>,
         on_building: Option<Entity>,
     ) -> Self {
         Unit {
@@ -313,7 +394,7 @@ impl Unit {
             color: player.color,
             action: Action::default(),
             health: name.health(),
-            path: path.unwrap_or(*player.direction.paths().choose(&mut rng()).unwrap()),
+            lane: lane.unwrap_or(*player.direction.lanes().choose(&mut rng()).unwrap()),
             on_building,
         }
     }

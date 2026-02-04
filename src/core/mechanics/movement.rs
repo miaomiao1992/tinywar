@@ -5,7 +5,7 @@ use crate::core::constants::{
 use crate::core::map::map::Map;
 use crate::core::mechanics::combat::{ApplyDamageMsg, Arrow};
 use crate::core::mechanics::spawn::DespawnMsg;
-use crate::core::player::{Players, Side};
+use crate::core::player::{Players, Side, Strategy};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit, UnitName};
@@ -21,7 +21,7 @@ fn get_tiles_at_distance(pos: &TilePos, d: u32) -> HashSet<TilePos> {
         .collect()
 }
 
-/// Return the next tile to walk to, which is the one after the closest path tile
+/// Return the next tile to walk to, which is the one after the closest lane tile
 fn get_target_tile(tile: TilePos, path: &[TilePos]) -> TilePos {
     let closest = path
         .iter()
@@ -46,22 +46,22 @@ fn move_unit(
     time: &Time,
 ) {
     let tile = Map::world_to_tile(&unit_t.translation);
-    let mut path = map.path(&unit.path);
+    let mut lane = map.lane(&unit.lane);
 
     let player = players.get_by_color(unit.color);
     let enemy = players.get_by_side(player.side.opposite());
 
     // Reverse paths for the enemy
     if player.side == Side::Right {
-        path.reverse();
+        lane.reverse();
     }
 
-    if tile == *path.last().unwrap() {
+    if tile == *lane.last().unwrap() {
         unit.action = Action::Idle;
         return;
     }
 
-    let target_tile = get_target_tile(tile, &path);
+    let target_tile = get_target_tile(tile, &lane);
     let target_pos = Map::tile_to_world(target_tile).extend(unit_t.translation.z);
     let target_delta = (target_pos - unit_t.translation).normalize();
 
@@ -70,7 +70,7 @@ fn move_unit(
     // Only check units in the surrounding
     for tile in get_tiles_at_distance(&tile, 5) {
         if let Some(units) = unit_pos.get(&tile) {
-            for (other_e, other_pos, other) in units {
+            'enemy: for (other_e, other_pos, other) in units {
                 let delta = unit_t.translation - other_pos;
                 let dist = delta.length();
 
@@ -87,8 +87,18 @@ fn move_unit(
                     (UnitName::Priest, true) if other.health < other.name.health() => {
                         Action::Heal(*other_e)
                     },
-                    (u, false) if !u.is_melee() => Action::Attack(*other_e),
-                    (u, false) if u.can_attack() && dist <= SEPARATION_RADIUS => {
+                    (u, false)
+                        if u.can_attack()
+                            && !u.is_melee()
+                            && player.strategy != Strategy::March =>
+                    {
+                        Action::Attack(*other_e)
+                    },
+                    (u, false)
+                        if u.can_attack()
+                            && player.strategy != Strategy::March
+                            && dist <= SEPARATION_RADIUS =>
+                    {
                         Action::Attack(*other_e)
                     },
                     _ => {
@@ -121,11 +131,11 @@ fn move_unit(
                             separation += perpendicular * sign + delta_norm * strength;
                         }
 
-                        continue;
+                        continue 'enemy;
                     },
                 };
 
-                return;
+                return; // The unit's action is non-run -> skip movement
             }
         }
 
@@ -169,6 +179,11 @@ fn move_unit(
             * unit.name.speed()
             * if player.has_boost(Boost::Run) {
                 2.
+            } else {
+                1.
+            }
+            * if player.strategy == Strategy::March {
+                1.5
             } else {
                 1.
             }

@@ -1,14 +1,14 @@
 use crate::core::audio::PlayAudioMsg;
 use crate::core::constants::{MAX_GAME_SPEED, MIN_GAME_SPEED};
 use crate::core::map::ui::systems::UiCmp;
-use crate::core::mechanics::explosion::ExplosionCmp;
+use crate::core::mechanics::effects::EffectCmp;
 use crate::core::mechanics::queue::QueueUnitMsg;
 use crate::core::menu::systems::{Host, StartNewGameMsg};
 use crate::core::menu::utils::TextSize;
-use crate::core::player::{PlayerDirection, Players, Side};
+use crate::core::player::{PlayerDirection, Players, Side, Strategy};
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, GameState};
-use crate::core::units::units::UnitName;
+use crate::core::units::units::{Action, Unit, UnitName};
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 #[cfg(not(target_arch = "wasm32"))]
@@ -105,7 +105,7 @@ pub fn check_keys_playing_game(
     mut play_audio_msg: MessageWriter<PlayAudioMsg>,
     mut pressed: Local<bool>,
 ) {
-    // Change unit direction
+    // Change direction
     let mid_key = if players.me.side == Side::Left {
         KeyCode::ArrowRight
     } else {
@@ -123,23 +123,33 @@ pub fn check_keys_playing_game(
 
         if keyboard.just_released(any_key) {
             new_direction = Some(PlayerDirection::Any);
-        } else if keyboard.just_released(mid_key) {
-            new_direction = Some(
-                match (keyboard.pressed(KeyCode::ArrowUp), keyboard.pressed(KeyCode::ArrowDown)) {
-                    (true, _) => PlayerDirection::TopMid,
-                    (_, true) => PlayerDirection::MidBot,
-                    _ => PlayerDirection::Mid,
-                },
-            );
-        } else if keyboard.just_released(KeyCode::ArrowUp) {
-            new_direction = Some(if keyboard.pressed(mid_key) {
+        } else if keyboard.just_released(mid_key) && !*pressed {
+            new_direction = Some(if keyboard.pressed(KeyCode::ArrowUp) {
+                *pressed = true;
                 PlayerDirection::TopMid
+            } else if keyboard.pressed(KeyCode::ArrowDown) {
+                *pressed = true;
+                PlayerDirection::MidBot
+            } else {
+                PlayerDirection::Mid
+            });
+        } else if keyboard.just_released(KeyCode::ArrowUp) && !*pressed {
+            new_direction = Some(if keyboard.pressed(mid_key) {
+                *pressed = true;
+                PlayerDirection::TopMid
+            } else if keyboard.pressed(KeyCode::ArrowDown) {
+                *pressed = true;
+                PlayerDirection::TopBot
             } else {
                 PlayerDirection::Top
             });
-        } else if keyboard.just_released(KeyCode::ArrowDown) {
+        } else if keyboard.just_released(KeyCode::ArrowDown) && !*pressed {
             new_direction = Some(if keyboard.pressed(mid_key) {
+                *pressed = true;
                 PlayerDirection::MidBot
+            } else if keyboard.pressed(KeyCode::ArrowUp) {
+                *pressed = true;
+                PlayerDirection::TopBot
             } else {
                 PlayerDirection::Bot
             });
@@ -155,9 +165,18 @@ pub fn check_keys_playing_game(
         }
     }
 
-    // Spawn units
+    // Change strategy
+    for strategy in Strategy::iter() {
+        if keyboard.just_released(strategy.key()) && strategy != players.me.strategy {
+            play_audio_msg.write(PlayAudioMsg::new("click"));
+            players.me.strategy = strategy;
+            println!("changing strat: {strategy:?}");
+        }
+    }
+
+    // Queue units
     for unit in UnitName::iter() {
-        if keyboard.just_released(unit.key()) {
+        if keyboard.just_released(unit.key()) && players.me.can_queue(unit) {
             queue_unit_msg.write(QueueUnitMsg::new(players.me.id, unit));
             play_audio_msg.write(PlayAudioMsg::new("button"));
         }
@@ -165,17 +184,27 @@ pub fn check_keys_playing_game(
 }
 
 pub fn update_animations(
-    mut anim_q: Query<(&mut TweenAnim, Option<&ExplosionCmp>), Without<UiCmp>>,
+    mut anim_q: Query<(&mut TweenAnim, Option<&Unit>, Option<&EffectCmp>), Without<UiCmp>>,
     settings: Res<Settings>,
+    players: Res<Players>,
     game_state: Res<State<GameState>>,
 ) {
     // Play/pause tween animations
-    anim_q.iter_mut().for_each(|(mut t, e)| {
-        t.speed = settings.speed as f64;
+    anim_q.iter_mut().for_each(|(mut tween, unit, explosion)| {
+        tween.speed = settings.speed as f64;
+
+        // Increase the attack animation of units in berserk mode
+        if let Some(unit) = unit {
+            let player = players.get_by_color(unit.color);
+
+            if player.strategy == Strategy::Berserk && matches!(unit.action, Action::Attack(_)) {
+                tween.speed *= 1.3
+            }
+        }
 
         // Skip pause for explosions
-        if e.is_none() {
-            t.playback_state = match game_state.get() {
+        if explosion.is_none() {
+            tween.playback_state = match game_state.get() {
                 GameState::Playing => PlaybackState::Playing,
                 _ => PlaybackState::Paused,
             }

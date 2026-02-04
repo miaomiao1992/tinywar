@@ -1,14 +1,14 @@
 use crate::core::boosts::Boost;
 use crate::core::constants::RADIUS;
-use crate::core::mechanics::explosion::ExplosionMsg;
+use crate::core::mechanics::effects::EffectMsg;
 use crate::core::mechanics::spawn::{DespawnMsg, SpawnArrowMsg};
-use crate::core::player::{Player, Players};
+use crate::core::player::{Player, Players, Strategy};
 use crate::core::settings::PlayerColor;
 use crate::core::states::GameState;
 use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit, UnitName};
 use bevy::prelude::*;
-use bevy_tweening::CycleCompletedEvent;
+use bevy_tweening::{CycleCompletedEvent, TweenAnim};
 use serde::{Deserialize, Serialize};
 use std::f32::consts::FRAC_PI_4;
 use std::time::Duration;
@@ -132,7 +132,7 @@ fn calculate_damage(
         _ => 1.,
     };
 
-    damage *= if defender.has_boost(Boost::ArmorGain) {
+    damage *= if defender.has_boost(Boost::ArmorGain) && !is_building {
         0.7
     } else {
         1.0
@@ -160,8 +160,9 @@ fn calculate_damage(
 }
 
 pub fn resolve_attack(
+    mut commands: Commands,
     entity_q: Query<(Entity, &Transform, Option<&Unit>), Or<(With<Unit>, With<Building>)>>,
-    unit_q: Query<(&Transform, &Unit)>,
+    mut unit_q: Query<(Entity, &Transform, &mut Sprite, &Unit)>,
     players: Res<Players>,
     mut cycle_completed_msg: MessageReader<CycleCompletedEvent>,
     mut spawn_arrow_msg: MessageWriter<SpawnArrowMsg>,
@@ -169,15 +170,30 @@ pub fn resolve_attack(
 ) {
     // Apply damage after the attacking animation finished
     for msg in cycle_completed_msg.read() {
-        if let Ok((unit_t, unit)) = unit_q.get(msg.anim_entity) {
+        if let Ok((unit_e, unit_t, mut unit_s, unit)) = unit_q.get_mut(msg.anim_entity) {
             let attacker = players.get_by_color(unit.color);
             let defender = players.get_by_side(attacker.side.opposite());
 
             match unit.action {
                 Action::Attack(e) | Action::Heal(e) => {
-                    if let Ok((target_e, target_t, u)) = entity_q.get(e) {
-                        let (armor, mr, is_building) = if let Some(u) = u {
-                            (u.name.armor(), u.name.magic_resist(), false)
+                    if let Ok((target_e, target_t, target)) = entity_q.get(e) {
+                        let (armor, mr, is_building) = if let Some(target) = target {
+                            let mut armor = target.name.armor();
+                            let mut mr = target.name.magic_resist();
+
+                            if target.action == Action::Guard {
+                                armor *= 2.;
+                                mr *= 2.;
+                            }
+
+                            if defender.strategy == Strategy::Berserk
+                                && target.on_building.is_none()
+                            {
+                                armor /= 2.;
+                                mr /= 2.;
+                            }
+
+                            (armor, mr, false)
                         } else {
                             (0., 0., true) // Buildings have no armor nor magic resist
                         };
@@ -210,6 +226,13 @@ pub fn resolve_attack(
                         }
                     }
                 },
+                Action::Guard if unit.name == UnitName::Turtle => {
+                    // Turtles stay in the shell during guard
+                    if let Some(atlas) = &mut unit_s.texture_atlas {
+                        atlas.index = 5;
+                        commands.entity(unit_e).remove::<TweenAnim>();
+                    }
+                },
                 _ => (),
             }
         }
@@ -222,7 +245,7 @@ pub fn apply_damage_message(
     mut building_q: Query<(Entity, &mut Building)>,
     mut apply_damage_msg: MessageReader<ApplyDamageMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
-    mut explosion_msg: MessageWriter<ExplosionMsg>,
+    mut effect_msg: MessageWriter<EffectMsg>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
     for msg in apply_damage_msg.read() {
@@ -239,7 +262,7 @@ pub fn apply_damage_message(
                 building.health = (building.health - msg.damage).clamp(0., building.name.health());
                 if building.health == 0. {
                     commands.entity(building_e).insert(BuildingDestroyCmp::default());
-                    explosion_msg.write(ExplosionMsg(building_e));
+                    effect_msg.write(EffectMsg::explosion(building_e));
 
                     if building.is_base {
                         next_game_state.set(GameState::EndGame);

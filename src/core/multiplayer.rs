@@ -124,7 +124,8 @@ pub fn update_population_message(
                     unit: u.name,
                     position: Some(*t),
                     on_building: u.on_building,
-                    path: Some(u.path),
+                    lane: Some(u.lane),
+                    dust_effect: false,
                     entity: Some(*unit_e),
                 });
             }
@@ -143,6 +144,7 @@ pub fn update_population_message(
                     position: *t,
                     is_base: b.is_base,
                     health: b.health,
+                    dust_effect: false,
                     with_units: false,
                     entity: Some(*building_e),
                 });

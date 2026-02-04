@@ -3,7 +3,7 @@ use crate::core::constants::{FRAME_RATE, HEALTH_SIZE, RADIUS, UNIT_DEFAULT_SIZE}
 use crate::core::map::utils::SpriteFrameLens;
 use crate::core::mechanics::combat::BuildingDestroyCmp;
 use crate::core::mechanics::spawn::{DespawnMsg, HealthCmp, HealthWrapperCmp};
-use crate::core::player::Players;
+use crate::core::player::{Players, Strategy};
 use crate::core::settings::Settings;
 use crate::core::units::buildings::Building;
 use crate::core::units::units::{Action, Unit};
@@ -42,6 +42,18 @@ pub fn update_units(
     let units: HashMap<Entity, (Vec3, Unit)> =
         unit_q.iter().map(|(e, t, _, _, u)| (e, (t.translation, *u))).collect();
 
+    // Get the entities of the units under attack
+    let attacked: Vec<Entity> = unit_q
+        .iter()
+        .filter_map(|(_, _, _, _, u)| {
+            if let Action::Attack(e) = u.action {
+                Some(e)
+            } else {
+                None
+            }
+        })
+        .collect();
+
     // Get the entities of the units that are being healed
     let healed: Vec<Entity> = unit_q
         .iter()
@@ -56,6 +68,19 @@ pub fn update_units(
 
     for (unit_e, unit_t, mut unit_s, heal, mut unit) in &mut unit_q {
         let player = players.get_by_color(unit.color);
+
+        // If the unit is being attacked and the strategy is Guard, enter guard mode
+        if unit.action != Action::Guard {
+            if unit.name.can_guard()
+                && player.strategy == Strategy::Guard
+                && attacked.contains(&unit_e)
+            {
+                unit.action = Action::Guard;
+            }
+        } else if !attacked.contains(&unit_e) || player.strategy != Strategy::Guard {
+            // Go back to default when no longer under attack
+            unit.action = Action::Idle;
+        }
 
         // Check that the action receiver still exists and is in range, else go back to idle
         unit.action = match unit.action {
@@ -108,7 +133,7 @@ pub fn update_units(
                 .with_repeat_count(RepeatCount::Infinite)
                 .with_cycle_completed_event(matches!(
                     unit.action,
-                    Action::Attack(_) | Action::Heal(_)
+                    Action::Guard | Action::Attack(_) | Action::Heal(_)
                 )),
             ));
         }

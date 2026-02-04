@@ -23,7 +23,7 @@ pub const MAP_Z: f32 = 0.;
 pub const BUILDINGS_Z: f32 = 1.;
 pub const UNITS_Z: f32 = 2.;
 pub const ARROW_Z: f32 = 3.;
-pub const EXPLOSION_Z: f32 = 4.;
+pub const EFFECT_Z: f32 = 4.;
 
 /// Game settings
 pub const MAX_QUEUE_LENGTH: usize = 10;

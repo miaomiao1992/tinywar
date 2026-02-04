@@ -1,5 +1,5 @@
 use crate::core::boosts::Boost;
-use crate::core::map::map::Path;
+use crate::core::map::map::Lane;
 use crate::core::settings::PlayerColor;
 use crate::core::units::units::UnitName;
 use crate::core::utils::ClientId;
@@ -34,6 +34,7 @@ pub enum PlayerDirection {
     Mid,
     MidBot,
     Bot,
+    TopBot,
 }
 
 impl PlayerDirection {
@@ -43,6 +44,7 @@ impl PlayerDirection {
             PlayerDirection::Top | PlayerDirection::Bot => "top arrow",
             PlayerDirection::TopMid | PlayerDirection::MidBot => "top-mid arrow",
             PlayerDirection::Mid => "mid arrow",
+            PlayerDirection::TopBot => "top bot arrow",
         }
     }
 
@@ -57,29 +59,73 @@ impl PlayerDirection {
             PlayerDirection::TopMid => PlayerDirection::Mid,
             PlayerDirection::Mid => PlayerDirection::MidBot,
             PlayerDirection::MidBot => PlayerDirection::Bot,
-            PlayerDirection::Bot => PlayerDirection::Any,
+            PlayerDirection::Bot => PlayerDirection::TopBot,
+            PlayerDirection::TopBot => PlayerDirection::Any,
         }
     }
 
     pub fn previous(&self) -> Self {
         match self {
-            PlayerDirection::Any => PlayerDirection::Bot,
+            PlayerDirection::Any => PlayerDirection::TopBot,
             PlayerDirection::Top => PlayerDirection::Any,
             PlayerDirection::TopMid => PlayerDirection::Top,
             PlayerDirection::Mid => PlayerDirection::TopMid,
             PlayerDirection::MidBot => PlayerDirection::Mid,
             PlayerDirection::Bot => PlayerDirection::MidBot,
+            PlayerDirection::TopBot => PlayerDirection::Bot,
         }
     }
 
-    pub fn paths(&self) -> Vec<Path> {
+    pub fn lanes(&self) -> Vec<Lane> {
         match self {
-            Self::Any => Path::iter().collect(),
-            Self::Top => vec![Path::Top],
-            Self::TopMid => vec![Path::Top, Path::Mid],
-            Self::Mid => vec![Path::Mid],
-            Self::MidBot => vec![Path::Mid, Path::Bot],
-            Self::Bot => vec![Path::Bot],
+            Self::Any => Lane::iter().collect(),
+            Self::Top => vec![Lane::Top],
+            Self::TopMid => vec![Lane::Top, Lane::Mid],
+            Self::Mid => vec![Lane::Mid],
+            Self::MidBot => vec![Lane::Mid, Lane::Bot],
+            Self::Bot => vec![Lane::Bot],
+            Self::TopBot => vec![Lane::Top, Lane::Bot],
+        }
+    }
+}
+
+#[derive(EnumIter, Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub enum Strategy {
+    #[default]
+    Attack,
+    Guard,
+    March,
+    Berserk,
+}
+
+impl Strategy {
+    pub fn key(&self) -> KeyCode {
+        match self {
+            Strategy::Attack => KeyCode::KeyU,
+            Strategy::Guard => KeyCode::KeyI,
+            Strategy::March => KeyCode::KeyO,
+            Strategy::Berserk => KeyCode::KeyP,
+        }
+    }
+
+    pub fn description(&self) -> &str {
+        match self {
+            Strategy::Attack => {
+                "Advance until an enemy is in range, then attack. This is the default strategy."
+            },
+            Strategy::Guard => {
+                "Units that are being attacked go into guard stand (only those that can). \
+                Guarding units have their armor and magic resist increased by 50%, but don't \
+                attack."
+            },
+            Strategy::March => {
+                "Increase all unit's movement speed by 50% and ignore the enemies. March \
+                towards the enemy base!"
+            },
+            Strategy::Berserk => {
+                "Units gain 30% increased attack speed but reduces their armor and magic \
+                resist by 50%."
+            },
         }
     }
 }
@@ -127,6 +173,7 @@ pub struct Player {
     pub color: PlayerColor,
     pub side: Side,
     pub direction: PlayerDirection,
+    pub strategy: Strategy,
     pub queue: VecDeque<QueuedUnit>,
     pub queue_default: UnitName,
     pub boosts: Vec<SelectedBoost>,
@@ -139,9 +186,14 @@ impl Player {
             color,
             side,
             direction: PlayerDirection::default(),
+            strategy: Strategy::default(),
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
-            boosts: vec![SelectedBoost::new(Boost::QueueSharks)],
+            boosts: vec![
+                SelectedBoost::new(Boost::Clone),
+                SelectedBoost::new(Boost::Castle),
+                SelectedBoost::new(Boost::Tower),
+            ],
         }
     }
 
@@ -155,7 +207,9 @@ impl Player {
 
     pub fn can_queue(&self, unit: UnitName) -> bool {
         unit.is_basic_unit()
+            || (unit == UnitName::Bear && self.has_boost(Boost::QueueBears))
             || (unit == UnitName::Hammerhead && self.has_boost(Boost::QueueHammerheads))
+            || (unit == UnitName::Minotaur && self.has_boost(Boost::QueueMinotaurs))
             || (unit == UnitName::Shark && self.has_boost(Boost::QueueSharks))
             || (unit == UnitName::Skull && self.has_boost(Boost::QueueSkulls))
             || (unit == UnitName::Turtle && self.has_boost(Boost::QueueTurtles))

@@ -95,11 +95,13 @@ impl FromWorld for WorldAssets {
             ("top arrow", assets.load("images/icons/top arrow.png")),
             ("top-mid arrow", assets.load("images/icons/top-mid arrow.png")),
             ("mid arrow", assets.load("images/icons/mid arrow.png")),
+            ("top bot arrow", assets.load("images/icons/top bot arrow.png")),
             ("health", assets.load("images/icons/health.png")),
             ("attack range", assets.load("images/icons/attack range.png")),
             ("spawn duration", assets.load("images/icons/spawn duration.png")),
             ("movement speed", assets.load("images/icons/movement speed.png")),
             ("attack speed", assets.load("images/icons/attack speed.png")),
+            ("can guard", assets.load("images/icons/can guard.png")),
             ("healing speed", assets.load("images/icons/healing speed.png")),
             ("healing", assets.load("images/icons/healing.png")),
             ("physical damage", assets.load("images/icons/physical damage.png")),
@@ -124,6 +126,8 @@ impl FromWorld for WorldAssets {
             ("harpoon", assets.load("images/units/harpoon.png")),
             // Effects
             ("heal", assets.load("images/effects/heal.png")),
+            ("dust1", assets.load("images/effects/dust1.png")),
+            ("dust2", assets.load("images/effects/dust2.png")),
             ("explosion1", assets.load("images/effects/explosion1.png")),
             ("explosion2", assets.load("images/effects/explosion2.png")),
             ("fire1", assets.load("images/effects/fire1.png")),
@@ -259,8 +263,10 @@ impl FromWorld for WorldAssets {
         }
 
         let heal = TextureAtlasLayout::from_grid(UVec2::splat(192), 11, 1, None, None);
-        let explosion1 = TextureAtlasLayout::from_grid(UVec2::splat(192), 9, 1, None, None);
-        let explosion2 = TextureAtlasLayout::from_grid(UVec2::splat(192), 11, 1, None, None);
+        let dust1 = TextureAtlasLayout::from_grid(UVec2::splat(64), 8, 1, None, None);
+        let dust2 = TextureAtlasLayout::from_grid(UVec2::splat(64), 10, 1, None, None);
+        let explosion1 = TextureAtlasLayout::from_grid(UVec2::splat(192), 8, 1, None, None);
+        let explosion2 = TextureAtlasLayout::from_grid(UVec2::splat(192), 10, 1, None, None);
         let fire1 = TextureAtlasLayout::from_grid(UVec2::splat(64), 8, 1, None, None);
         let fire2 = TextureAtlasLayout::from_grid(UVec2::splat(64), 10, 1, None, None);
         let fire3 = TextureAtlasLayout::from_grid(UVec2::splat(64), 12, 1, None, None);
@@ -274,6 +280,28 @@ impl FromWorld for WorldAssets {
                         index: 0,
                     },
                     last_index: 11,
+                },
+            ),
+            (
+                "dust1",
+                AtlasInfo {
+                    image: images["dust1"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(dust1),
+                        index: 0,
+                    },
+                    last_index: 7,
+                },
+            ),
+            (
+                "dust2",
+                AtlasInfo {
+                    image: images["dust2"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(dust2),
+                        index: 0,
+                    },
+                    last_index: 9,
                 },
             ),
             (

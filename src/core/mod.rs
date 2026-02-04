@@ -29,7 +29,7 @@ use crate::core::map::systems::{draw_map, setup_end_game, MapCmp};
 use crate::core::map::ui::boosts::{setup_after_boost, setup_boost_selection};
 use crate::core::map::ui::systems::{draw_ui, update_ui, update_ui2, UiCmp};
 use crate::core::mechanics::combat::{apply_damage_message, resolve_attack, ApplyDamageMsg};
-use crate::core::mechanics::explosion::{explosion_message, update_explosions, ExplosionMsg};
+use crate::core::mechanics::effects::{deferred_message, despawn_effects, effect_message, DeferredEffectMsg, EffectMsg};
 use crate::core::mechanics::movement::apply_movement;
 use crate::core::mechanics::queue::*;
 use crate::core::mechanics::spawn::*;
@@ -96,7 +96,8 @@ impl Plugin for GamePlugin {
             .add_message::<DespawnMsg>()
             .add_message::<ActivateBoostMsg>()
             .add_message::<ApplyDamageMsg>()
-            .add_message::<ExplosionMsg>()
+            .add_message::<EffectMsg>()
+            .add_message::<DeferredEffectMsg>()
             // Resources
             .insert_resource(ClearColor(WATER_COLOR))
             .init_resource::<WorldAssets>()
@@ -163,15 +164,7 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(AppState::Game), (draw_map, draw_ui))
             .add_systems(
                 Update,
-                (
-                    explosion_message,
-                    update_ui,
-                    update_ui2,
-                    update_animations,
-                    update_buildings,
-                    update_explosions,
-                )
-                    .in_set(InGameSet),
+                (update_ui, update_ui2, update_animations, update_buildings).in_set(InGameSet),
             )
             .add_systems(
                 Update,
@@ -189,8 +182,9 @@ impl Plugin for GamePlugin {
                 )
                     .in_set(InPlayingSet),
             )
+            .add_systems(PostUpdate, (effect_message, deferred_message).chain().in_set(InGameSet))
             .add_systems(PostUpdate, queue_message.in_set(InPlayingOrPausedSet))
-            .add_systems(Last, despawn_message.in_set(InGameSet))
+            .add_systems(Last, (despawn_effects, despawn_message).in_set(InGameSet))
             .add_systems(OnExit(AppState::Game), (despawn::<MapCmp>, reset_camera))
             .add_systems(OnEnter(GameState::BoostSelection), setup_boost_selection)
             .add_systems(OnExit(GameState::BoostSelection), despawn::<CardCmp>)

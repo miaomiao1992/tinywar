@@ -1,9 +1,10 @@
 use crate::core::assets::WorldAssets;
 use crate::core::constants::*;
-use crate::core::map::map::Path;
+use crate::core::map::map::Lane;
 use crate::core::map::systems::MapCmp;
 use crate::core::map::utils::SpriteFrameLens;
 use crate::core::mechanics::combat::{Arrow, Projectile};
+use crate::core::mechanics::effects::EffectMsg;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::core::multiplayer::EntityMap;
 use crate::core::player::Players;
@@ -34,6 +35,7 @@ pub struct SpawnBuildingMsg {
     pub is_base: bool,
     pub health: f32,
     pub with_units: bool,
+    pub dust_effect: bool,
     pub entity: Option<Entity>,
 }
 
@@ -43,7 +45,8 @@ pub struct SpawnUnitMsg {
     pub unit: UnitName,
     pub position: Option<Vec2>,
     pub on_building: Option<Entity>,
-    pub path: Option<Path>,
+    pub lane: Option<Lane>,
+    pub dust_effect: bool,
     pub entity: Option<Entity>,
 }
 
@@ -54,7 +57,8 @@ impl SpawnUnitMsg {
             unit,
             position: None,
             on_building: None,
-            path: None,
+            lane: None,
+            dust_effect: false,
             entity: None,
         }
     }
@@ -77,6 +81,7 @@ pub fn spawn_building_message(
     mut commands: Commands,
     #[cfg(not(target_arch = "wasm32"))] mut entity_map: ResMut<EntityMap>,
     mut spawn_building_msg: MessageReader<SpawnBuildingMsg>,
+    mut effct_msg: MessageWriter<EffectMsg>,
     mut spawn_unit_msg: MessageWriter<SpawnUnitMsg>,
     assets: Res<WorldAssets>,
 ) {
@@ -107,7 +112,7 @@ pub fn spawn_building_message(
                         custom_size: Some(Vec2::new(0.5 * size.x, 15.)),
                         ..default()
                     },
-                    Transform::from_xyz(0., size.y * 0.5, EXPLOSION_Z - 0.2),
+                    Transform::from_xyz(0., size.y * 0.5, EFFECT_Z - 0.2),
                     Visibility::Hidden,
                     HealthWrapperCmp,
                     children![(
@@ -116,12 +121,16 @@ pub fn spawn_building_message(
                             custom_size: Some(Vec2::new(0.49 * size.x, 13.)),
                             ..default()
                         },
-                        Transform::from_xyz(0., 0., EXPLOSION_Z - 0.1),
+                        Transform::from_xyz(0., 0., EFFECT_Z - 0.1),
                         HealthCmp,
                     )],
                 )],
             ))
             .id();
+
+        if msg.dust_effect {
+            effct_msg.write(EffectMsg::dust(id));
+        }
 
         if msg.with_units {
             for pos in msg.building.units() {
@@ -130,7 +139,8 @@ pub fn spawn_building_message(
                     unit: UnitName::Archer,
                     position: Some(msg.position + pos),
                     on_building: Some(id),
-                    path: None,
+                    lane: None,
+                    dust_effect: false,
                     entity: None,
                 });
             }
@@ -148,6 +158,7 @@ pub fn spawn_unit_message(
     building_q: Query<(&Transform, &Building)>,
     players: Res<Players>,
     #[cfg(not(target_arch = "wasm32"))] mut entity_map: ResMut<EntityMap>,
+    mut effect_msg: MessageWriter<EffectMsg>,
     mut spawn_unit_msg: MessageReader<SpawnUnitMsg>,
     assets: Res<WorldAssets>,
 ) {
@@ -195,7 +206,7 @@ pub fn spawn_unit_message(
                         )
                         .with_repeat_count(RepeatCount::Infinite),
                     ),
-                    Unit::new(msg.unit, players.get_by_color(msg.color), msg.path, msg.on_building),
+                    Unit::new(msg.unit, players.get_by_color(msg.color), msg.lane, msg.on_building),
                     MapCmp,
                     children![(
                         Sprite {
@@ -218,6 +229,10 @@ pub fn spawn_unit_message(
                     )],
                 ))
                 .id();
+
+            if msg.dust_effect {
+                effect_msg.write(EffectMsg::dust(id));
+            }
 
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(entity) = msg.entity {

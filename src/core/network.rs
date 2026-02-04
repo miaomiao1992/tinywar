@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use crate::core::audio::PlayAudioMsg;
 use crate::core::boosts::{ActivateBoostMsg, AfterBoostCount, Boost};
 use crate::core::constants::MAX_BOOSTS;
-use crate::core::mechanics::explosion::ExplosionMsg;
+use crate::core::mechanics::effects::{Effect, EffectMsg};
 use crate::core::mechanics::spawn::SpawnUnitMsg;
 use crate::core::menu::buttons::LobbyTextCmp;
 use crate::core::multiplayer::{EntityMap, Population, UpdatePopulationMsg};
@@ -73,7 +73,10 @@ pub enum ServerMessage {
         boosts: Vec<SelectedBoost>,
         population: Population,
     },
-    Explosion(Entity),
+    Effect {
+        effect: Effect,
+        entity: Entity,
+    },
     PlayWarning,
 }
 
@@ -273,7 +276,7 @@ pub fn client_receive_message(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut client_send_msg: MessageWriter<ClientSendMsg>,
     mut update_population_msg: MessageWriter<UpdatePopulationMsg>,
-    mut explosion_msg: MessageWriter<ExplosionMsg>,
+    mut effect_msg: MessageWriter<EffectMsg>,
     mut play_audio_msg: MessageWriter<PlayAudioMsg>,
     game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
@@ -336,8 +339,14 @@ pub fn client_receive_message(
                 },
                 _ => (),
             },
-            ServerMessage::Explosion(entity) => {
-                explosion_msg.write(ExplosionMsg(entity));
+            ServerMessage::Effect {
+                effect,
+                entity,
+            } => {
+                effect_msg.write(EffectMsg {
+                    effect,
+                    entity,
+                });
             },
             ServerMessage::PlayWarning => {
                 play_audio_msg.write(PlayAudioMsg::new("warning"));

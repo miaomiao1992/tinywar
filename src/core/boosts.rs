@@ -1,6 +1,6 @@
 use crate::core::audio::PlayAudioMsg;
 use crate::core::constants::MAX_BOOSTS;
-use crate::core::map::map::{Map, Path};
+use crate::core::map::map::{Lane, Map};
 use crate::core::mechanics::spawn::{DespawnMsg, SpawnBuildingMsg, SpawnUnitMsg};
 use crate::core::menu::systems::Host;
 #[cfg(not(target_arch = "wasm32"))]
@@ -10,7 +10,7 @@ use crate::core::settings::{GameMode, PlayerColor, Settings};
 use crate::core::states::GameState;
 use crate::core::units::buildings::{Building, BuildingName};
 use crate::core::units::units::{Action, Unit, UnitName};
-use crate::utils::scale_duration;
+use crate::utils::{scale_duration, NameFromEnum};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::TilePos;
 use itertools::Itertools;
@@ -45,6 +45,7 @@ pub struct AfterBoostCount(pub usize);
 pub enum Boost {
     ArmorGain,
     Arrows,
+    BearDefender,
     BlockRange,
     BuildingsBlock,
     BuildingsDefense,
@@ -63,9 +64,12 @@ pub enum Boost {
     MagicPower,
     MagicSwap,
     Meditation,
+    MinotaurRage,
     NoCollision,
     Penetration,
+    QueueBears,
     QueueHammerheads,
+    QueueMinotaurs,
     QueueSharks,
     QueueSkulls,
     QueueTurtles,
@@ -74,9 +78,11 @@ pub enum Boost {
     Run,
     SharkTower,
     Siege,
+    Snakes,
     SpawnTime,
     SpawnSkulls,
     SpawnTurtles,
+    Spiders,
     Tower,
     Warrior,
 }
@@ -86,11 +92,12 @@ impl Boost {
         match self {
             Boost::ArmorGain => "Decrease damage to all your units by 30%.",
             Boost::Arrows => "Your archers deal 30% more damage.",
+            Boost::BearDefender => "Every priest summons a bear next to him.",
             Boost::BlockRange => "Block all damage on units from enemy ranged units.",
             Boost::BuildingsBlock => "Block all damage dealt to your buildings.",
             Boost::BuildingsDefense => "Increase the damage of all units on buildings by 100%.",
             Boost::Castle => "Upgrade your base to a castle.",
-            Boost::Clone => "Clones 8 random units of yours (in position).",
+            Boost::Clone => "Clones 8 random non-attacking units of yours (in position).",
             Boost::Conversion => "Converts 5 random enemy units to your side.",
             Boost::ConvertHammerheads => "Transforms all your lancers into hammerheads.",
             Boost::ConvertSharks => "Transforms all your ground archers into sharks.",
@@ -104,9 +111,12 @@ impl Boost {
             Boost::MagicPower => "Increase all your unit's magic damage by 100%.",
             Boost::MagicSwap => "All your unit's physical damage become magic damage.",
             Boost::Meditation => "Your priest's healing is 70% stronger.",
+            Boost::MinotaurRage => "Spawn a minotaur for every 3 enemy magical units (min 1).",
             Boost::NoCollision => "Your units don't collide with each other.",
             Boost::Penetration => "Increase the armor penetration of all your units with 5 points.",
+            Boost::QueueBears => "Allow to add bears to the queue.",
             Boost::QueueHammerheads => "Allow to add hammerheads to the queue.",
+            Boost::QueueMinotaurs => "Allow to add minotaurs to the queue.",
             Boost::QueueSharks => "Allow to add sharks to the queue.",
             Boost::QueueSkulls => "Allow to add skulls to the queue.",
             Boost::QueueTurtles => "Allow to add turtles to the queue.",
@@ -115,9 +125,11 @@ impl Boost {
             Boost::Run => "Increase the speed of all your units by 100%.",
             Boost::SharkTower => "Convert all your units on buildings into sharks.",
             Boost::Siege => "Increase all damage to buildings by 50%.",
+            Boost::Snakes => "Spawn 20 snakes randomly over the map.",
             Boost::SpawnTime => "Reduce all spawning times by 20%.",
             Boost::SpawnSkulls => "Spawn 15 skulls.",
             Boost::SpawnTurtles => "Spawn 3 turtles, each towards a path.",
+            Boost::Spiders => "Spawn 10 spiders randomly over the map.",
             Boost::Tower => "Spawn a defense tower near the base.",
             Boost::Warrior => "Increase your warrior's damage by 50%.",
         }
@@ -131,12 +143,8 @@ impl Boost {
         match self {
             Boost::Castle => !buildings.any(|b| b.name == BuildingName::Castle),
             Boost::Tower => buildings.filter(|b| b.name == BuildingName::Tower).count() < 2,
-            Boost::QueueHammerheads
-            | Boost::QueueSharks
-            | Boost::QueueSkulls
-            | Boost::QueueTurtles => {
-                UnitName::iter().filter(|u| player.can_queue(*u)).count()
-                    == UnitName::iter().filter(|u| u.is_basic_unit()).count()
+            a if a.to_name().starts_with("Queue") => {
+                player.boosts.iter().map(|b| b.name.to_name().starts_with("Queue")).count() == 0
             },
             _ => true,
         }
@@ -158,14 +166,11 @@ impl Boost {
             Boost::Meditation => 40,
             Boost::NoCollision => 20,
             Boost::Penetration => 30,
-            Boost::QueueHammerheads => 50,
-            Boost::QueueSharks => 50,
-            Boost::QueueSkulls => 50,
-            Boost::QueueTurtles => 50,
             Boost::Run => 15,
             Boost::Siege => 10,
             Boost::SpawnTime => 50,
             Boost::Warrior => 40,
+            b if b.to_name().starts_with("Queue") => 40,
             _ => 0,
         }
     }
@@ -254,6 +259,22 @@ pub fn activate_boost_message(
 
             let mut rng = rng();
             match msg.boost {
+                Boost::BearDefender => {
+                    for (unit_t, _, unit) in unit_q
+                        .iter()
+                        .filter(|(_, _, u)| u.color == player.color && u.name == UnitName::Priest)
+                    {
+                        spawn_unit_msg.write(SpawnUnitMsg {
+                            color: player.color,
+                            unit: UnitName::Bear,
+                            position: Some(unit_t.translation.truncate()),
+                            on_building: None,
+                            lane: Some(unit.lane),
+                            dust_effect: true,
+                            entity: None,
+                        });
+                    }
+                },
                 Boost::Castle => {
                     if let Some((base_e, base_t, base)) =
                         building_q.iter().find(|(_, _, b)| b.is_base && b.color == player.color)
@@ -267,6 +288,7 @@ pub fn activate_boost_message(
                             is_base: true,
                             health: BuildingName::Castle.health() * base.health
                                 / base.name.health(),
+                            dust_effect: true,
                             with_units: true,
                             entity: None,
                         });
@@ -275,7 +297,11 @@ pub fn activate_boost_message(
                 Boost::Clone => {
                     for (unit_t, _, unit) in unit_q
                         .iter()
-                        .filter(|(_, _, u)| u.color == player.color && u.on_building.is_none())
+                        .filter(|(_, _, u)| {
+                            u.color == player.color
+                                && u.on_building.is_none()
+                                && !matches!(u.action, Action::Attack(_))
+                        })
                         .choose_multiple(&mut rng, 8)
                     {
                         spawn_unit_msg.write(SpawnUnitMsg {
@@ -283,7 +309,8 @@ pub fn activate_boost_message(
                             unit: unit.name,
                             position: Some(unit_t.translation.truncate()),
                             on_building: None,
-                            path: Some(unit.path),
+                            lane: Some(unit.lane),
+                            dust_effect: true,
                             entity: None,
                         });
                     }
@@ -291,7 +318,7 @@ pub fn activate_boost_message(
                 Boost::Conversion => {
                     for (_, _, mut u) in unit_q
                         .iter_mut()
-                        .filter(|(_, _, u)| u.color != player.color)
+                        .filter(|(_, _, u)| u.color != player.color && u.on_building.is_none())
                         .choose_multiple(&mut rng, 5)
                     {
                         u.color = player.color;
@@ -327,6 +354,15 @@ pub fn activate_boost_message(
                     }
                 },
                 Boost::Lightning => unit_q.iter_mut().for_each(|(_, _, mut u)| u.health *= 0.5),
+                Boost::MinotaurRage => {
+                    let enemies = unit_q
+                        .iter()
+                        .filter(|(_, _, u)| u.color != player.color && !u.name.is_basic_unit())
+                        .count();
+                    for _ in 0..(enemies / 3).max(1) {
+                        spawn_unit_msg.write(SpawnUnitMsg::new(player.color, UnitName::Minotaur));
+                    }
+                },
                 Boost::Repair => building_q
                     .iter_mut()
                     .filter(|(_, _, b)| b.color == player.color)
@@ -348,7 +384,8 @@ pub fn activate_boost_message(
                                     unit: UnitName::Archer,
                                     position: Some(t.translation.truncate() + pos),
                                     on_building: Some(e),
-                                    path: None,
+                                    lane: None,
+                                    dust_effect: true,
                                     entity: None,
                                 });
                             }
@@ -370,13 +407,14 @@ pub fn activate_boost_message(
                     }
                 },
                 Boost::SpawnTurtles => {
-                    for path in Path::iter() {
+                    for path in Lane::iter() {
                         spawn_unit_msg.write(SpawnUnitMsg {
                             color: player.color,
                             unit: UnitName::Turtle,
                             position: None,
                             on_building: None,
-                            path: Some(path),
+                            lane: Some(path),
+                            dust_effect: false,
                             entity: None,
                         });
                     }
@@ -414,6 +452,7 @@ pub fn activate_boost_message(
                         position,
                         is_base: false,
                         health: BuildingName::Tower.health(),
+                        dust_effect: true,
                         with_units: true,
                         entity: None,
                     });

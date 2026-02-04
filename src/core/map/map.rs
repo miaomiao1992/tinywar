@@ -8,19 +8,19 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(EnumIter, Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub enum Path {
+pub enum Lane {
     Top,
     Mid,
     Bot,
 }
 
-impl Path {
+impl Lane {
     /// Y-position of the tile that is used as waypoint (middle) of the path to follow
     pub fn waypoint(&self) -> TilePos {
         match self {
-            Path::Top => TilePos::new(14, 2),
-            Path::Mid => TilePos::new(14, 6),
-            Path::Bot => TilePos::new(14, 10),
+            Lane::Top => TilePos::new(14, 2),
+            Lane::Mid => TilePos::new(14, 6),
+            Lane::Bot => TilePos::new(14, 10),
         }
     }
 }
@@ -28,7 +28,7 @@ impl Path {
 /// Metadata required to draw the map
 #[derive(Resource, Debug)]
 pub struct Map {
-    paths: HashMap<Path, Vec<TilePos>>,
+    lanes: HashMap<Lane, Vec<TilePos>>,
 }
 
 impl Default for Map {
@@ -36,22 +36,22 @@ impl Default for Map {
         let start = Self::STARTING_POSITIONS[0];
         let end = Self::STARTING_POSITIONS[1];
 
-        let paths = Path::iter()
-            .map(|path| {
+        let lanes = Lane::iter()
+            .map(|lane| {
                 // Compute two segments: start → waypoint → end
-                let mut firs_segment = Self::find_path(start, path.waypoint());
-                let mut second_segment = Self::find_path(path.waypoint(), end);
+                let mut firs_segment = Self::find_path(start, lane.waypoint());
+                let mut second_segment = Self::find_path(lane.waypoint(), end);
 
                 // Remove the waypoint (overlap) from second segment
                 second_segment.remove(0);
                 firs_segment.extend(second_segment);
 
-                (path, firs_segment)
+                (lane, firs_segment)
             })
             .collect();
 
         Self {
-            paths,
+            lanes,
         }
     }
 }
@@ -147,8 +147,8 @@ impl Map {
         .unwrap_or_else(|| panic!("Unable to find a path from {start:?} to {end:?}."))
     }
 
-    pub fn path(&self, path: &Path) -> Vec<TilePos> {
-        self.paths.get(path).unwrap().clone()
+    pub fn lane(&self, path: &Lane) -> Vec<TilePos> {
+        self.lanes.get(path).unwrap().clone()
     }
 
     pub fn tile_to_world(tile: TilePos) -> Vec2 {

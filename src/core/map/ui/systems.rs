@@ -508,6 +508,7 @@ pub fn draw_ui(
                                             ("Magic resist", unit.magic_resist().to_string()),
                                             ("Armor penetration", unit.armor_pen().to_string()),
                                             ("Magic penetration", unit.magic_pen().to_string()),
+                                            ("Can guard", if unit.can_guard() {"Yes".to_owned()} else {"No".to_owned()}),
                                             ("Movement speed", unit.speed().to_string()),
                                             ("Attack range", unit.range().to_string()),
                                             ("Spawn duration", format!("{:.1}s", unit.spawn_duration() as f32 / 1000.)),

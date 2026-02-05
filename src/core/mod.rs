@@ -178,6 +178,7 @@ impl Plugin for GamePlugin {
                     spawn_building_message,
                     spawn_arrow_message,
                     update_units,
+                    update_strategy_timer,
                     (check_boost_timer, apply_movement, resolve_attack, apply_damage_message)
                         .chain()
                         .run_if(resource_exists::<Host>),

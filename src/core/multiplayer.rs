@@ -58,6 +58,7 @@ pub fn server_send_status(
     server_send_message.write(ServerSendMsg {
         message: ServerMessage::Status {
             speed: settings.speed,
+            strategy: players.me.strategy,
             boosts: players.me.boosts.clone(),
             population: Population {
                 units: unit_q

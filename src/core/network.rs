@@ -8,7 +8,7 @@ use crate::core::mechanics::effects::{Effect, EffectMsg};
 use crate::core::mechanics::spawn::SpawnUnitMsg;
 use crate::core::menu::buttons::LobbyTextCmp;
 use crate::core::multiplayer::{EntityMap, Population, UpdatePopulationMsg};
-use crate::core::player::{Player, Players, SelectedBoost, Side};
+use crate::core::player::{Player, Players, SelectedBoost, Side, Strategy};
 use crate::core::settings::{GameMode, PlayerColor, Settings};
 use crate::core::states::{AppState, GameState};
 use crate::core::units::units::UnitName;
@@ -71,6 +71,7 @@ pub enum ServerMessage {
     Status {
         speed: f32,
         boosts: Vec<SelectedBoost>,
+        strategy: Strategy,
         population: Population,
     },
     Effect {
@@ -360,12 +361,14 @@ pub fn client_receive_message(
         match d {
             ServerMessage::Status {
                 speed,
+                strategy,
                 boosts,
                 population,
             } => {
                 settings.speed = speed;
 
                 if let Some(players) = &mut players {
+                    players.enemy.strategy = strategy;
                     players.enemy.boosts = boosts;
                 }
 

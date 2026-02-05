@@ -1,4 +1,5 @@
 use crate::core::boosts::Boost;
+use crate::core::constants::STRATEGY_TIMER;
 use crate::core::map::map::Lane;
 use crate::core::settings::PlayerColor;
 use crate::core::units::units::UnitName;
@@ -101,10 +102,10 @@ pub enum Strategy {
 impl Strategy {
     pub fn key(&self) -> KeyCode {
         match self {
-            Strategy::Attack => KeyCode::KeyU,
-            Strategy::Guard => KeyCode::KeyI,
-            Strategy::March => KeyCode::KeyO,
-            Strategy::Berserk => KeyCode::KeyP,
+            Strategy::Attack => KeyCode::KeyT,
+            Strategy::Guard => KeyCode::KeyY,
+            Strategy::March => KeyCode::KeyU,
+            Strategy::Berserk => KeyCode::KeyI,
         }
     }
 
@@ -174,6 +175,7 @@ pub struct Player {
     pub side: Side,
     pub direction: PlayerDirection,
     pub strategy: Strategy,
+    pub strategy_timer: Timer,
     pub queue: VecDeque<QueuedUnit>,
     pub queue_default: UnitName,
     pub boosts: Vec<SelectedBoost>,
@@ -181,18 +183,23 @@ pub struct Player {
 
 impl Player {
     pub fn new(id: ClientId, color: PlayerColor, side: Side) -> Self {
+        // Start the game with the timer finished, so capable of changing strategy
+        let mut timer = Timer::new(Duration::from_secs(STRATEGY_TIMER), TimerMode::Once);
+        timer.finish();
+
         Self {
             id,
             color,
             side,
             direction: PlayerDirection::default(),
             strategy: Strategy::default(),
+            strategy_timer: timer,
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
             boosts: vec![
                 SelectedBoost::new(Boost::Snakes),
                 SelectedBoost::new(Boost::Castle),
-                SelectedBoost::new(Boost::Spiders),
+                SelectedBoost::new(Boost::QueueTurtles),
             ],
         }
     }

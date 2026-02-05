@@ -5,7 +5,7 @@ use crate::core::constants::{MAX_BOOSTS, MAX_QUEUE_LENGTH};
 use crate::core::map::systems::MapCmp;
 use crate::core::mechanics::queue::QueueUnitMsg;
 use crate::core::menu::utils::add_text;
-use crate::core::player::{Players, Side};
+use crate::core::player::{Players, Side, Strategy};
 use crate::core::settings::{PlayerColor, Settings};
 use crate::core::states::GameState;
 use crate::core::units::units::{Action, Unit, UnitName};
@@ -21,6 +21,9 @@ pub struct UiCmp;
 
 #[derive(Component, Deref)]
 pub struct AdvanceBannerCmp(pub Side);
+
+#[derive(Component)]
+pub struct StrategyAdvanceBannerCmp;
 
 #[derive(Component)]
 pub struct TextAdvanceBannerCmp;
@@ -74,6 +77,18 @@ impl ShopButtonCmp {
 }
 
 #[derive(Component, Deref)]
+pub struct StrategyButtonCmp(pub Strategy);
+
+#[derive(Component)]
+pub struct StrategyHoverCmp;
+
+#[derive(Component)]
+pub struct StrategyProgressWrapperCmp;
+
+#[derive(Component)]
+pub struct StrategyProgressCmp;
+
+#[derive(Component, Deref)]
 pub struct ShopLabelCmp(pub UnitName);
 
 #[derive(Component, Deref)]
@@ -122,6 +137,15 @@ pub fn draw_ui(
                         width,
                         height: Val::Percent(100.),
                         align_items: AlignItems::Center,
+                        flex_direction: component
+                            .map(|side| {
+                                if side == Side::Right {
+                                    FlexDirection::RowReverse
+                                } else {
+                                    FlexDirection::Row
+                                }
+                            })
+                            .unwrap_or_default(),
                         justify_content: component
                             .map(|side| {
                                 if side == Side::Left {
@@ -146,20 +170,31 @@ pub fn draw_ui(
                     p.insert((
                         AdvanceBannerCmp(side),
                         ZIndex(1),
-                        children![(
-                            Node {
-                                position_type: PositionType::Absolute,
-                                ..default()
-                            },
-                            TextLayout::new_with_justify(if side == Side::Left {
-                                Justify::Left
-                            } else {
-                                Justify::Right
-                            }),
-                            add_text("0%", "bold", 12., &assets, &window),
-                            TextAdvanceBannerCmp,
-                            GlobalZIndex(2), // On top of other color banner
-                        )],
+                        children![
+                            (
+                                Node {
+                                    height: Val::Percent(50.),
+                                    aspect_ratio: Some(1.0),
+                                    margin: UiRect::horizontal(Val::Percent(2.)),
+                                    ..default()
+                                },
+                                ImageNode::new(assets.image("attack")),
+                                StrategyAdvanceBannerCmp,
+                            ),
+                            (
+                                Node {
+                                    ..default()
+                                },
+                                TextLayout::new_with_justify(if side == Side::Left {
+                                    Justify::Left
+                                } else {
+                                    Justify::Right
+                                }),
+                                add_text("0%", "bold", 12., &assets, &window),
+                                TextAdvanceBannerCmp,
+                                GlobalZIndex(2), // On top of other color banner
+                            )
+                        ],
                     ));
                 }
             };
@@ -237,7 +272,7 @@ pub fn draw_ui(
                                 (
                                     Node {
                                         top: Val::Percent(5.),
-                                        right: Val::Percent(-240.),
+                                        right: Val::Percent(-250.),
                                         width: Val::Percent(270.),
                                         height: Val::Percent(120.),
                                         position_type: PositionType::Absolute,
@@ -354,7 +389,6 @@ pub fn draw_ui(
     commands
         .spawn((
             Node {
-                top: Val::Percent(12.),
                 left: Val::Percent(2.),
                 width: Val::Percent(7.),
                 height: Val::Percent(75.),
@@ -362,6 +396,7 @@ pub fn draw_ui(
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
+                align_self: AlignSelf::Center,
                 ..default()
             },
             Pickable::IGNORE,
@@ -469,27 +504,24 @@ pub fn draw_ui(
                                 ))
                                 .with_children(|parent| {
                                 parent
-                                    .spawn(Node {
+                                    .spawn((Node {
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
                                         flex_direction: FlexDirection::Column,
                                         margin: UiRect::ZERO.with_bottom(Val::Percent(4.)),
                                         ..default()
-                                    })
-                                    .with_children(|parent| {
-                                        parent.spawn((
-                                            Node {
-                                                margin: UiRect::ZERO.with_bottom(Val::Percent(2.)),
-                                                ..default()
-                                            },
-                                            TextColor(Color::BLACK),
-                                            add_text(unit.to_title(), "bold", 18., &assets, &window),
-                                        ));
-                                        parent.spawn((
-                                            TextColor(Color::BLACK),
-                                            add_text(unit.description(), "bold", 8., &assets, &window)),
-                                        );
-                                    });
+                                    }, children![(
+                                        Node {
+                                            margin: UiRect::vertical(Val::Percent(2.)),
+                                            ..default()
+                                        },
+                                        TextColor(Color::BLACK),
+                                        add_text(unit.to_title(), "bold", 18., &assets, &window),
+                                    ),
+                                    (
+                                        TextColor(Color::BLACK),
+                                        add_text(unit.description(), "bold", 8., &assets, &window),
+                                    )]));
 
                                 parent
                                     .spawn(Node {
@@ -576,6 +608,210 @@ pub fn draw_ui(
                                 }
                             },
                         );
+                    }
+                });
+        });
+
+    // Draw strategies
+    let texture = assets.texture("small ribbons");
+    commands
+        .spawn((
+            Node {
+                right: Val::Percent(2.),
+                width: Val::Percent(5.),
+                height: Val::Percent(50.),
+                position_type: PositionType::Absolute,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                align_self: AlignSelf::Center,
+                ..default()
+            },
+            Pickable::IGNORE,
+            UiCmp,
+            MapCmp,
+        ))
+        .with_children(|parent| {
+            let mut spawn = |idx| {
+                parent.spawn((
+                    Node {
+                        width: Val::Percent(100.),
+                        aspect_ratio: Some(1.0),
+                        ..default()
+                    },
+                    ImageNode::from_atlas_image(
+                        texture.image.clone(),
+                        TextureAtlas {
+                            layout: texture.layout.clone(),
+                            index: idx + players.me.color.index() * 10,
+                        },
+                    ),
+                    UiTransform::from_rotation(Rot2::degrees(90.)),
+                ));
+            };
+
+            // Spawn banner
+            for idx in [0, 2, 2, 2, 9] {
+                spawn(idx);
+            }
+
+            parent
+                .spawn(Node {
+                    width: Val::Percent(60.),
+                    height: Val::Percent(70.),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    position_type: PositionType::Absolute,
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                })
+                .with_children(|parent| {
+                    for strategy in Strategy::iter() {
+                        parent
+                            .spawn((
+                                Node {
+                                    width: Val::Percent(100.),
+                                    aspect_ratio: Some(1.0),
+                                    margin: UiRect::all(Val::Percent(15.)),
+                                    ..default()
+                                },
+                                ImageNode::new(assets.image(strategy.to_lowername())),
+                                StrategyButtonCmp(strategy),
+                                children![(
+                                    Node {
+                                        bottom: Val::Percent(-5.),
+                                        left: Val::Percent(70.),
+                                        position_type: PositionType::Absolute,
+                                        ..default()
+                                    },
+                                    add_text(
+                                        strategy
+                                            .key()
+                                            .to_name()
+                                            .chars()
+                                            .last()
+                                            .unwrap()
+                                            .to_string(),
+                                        "bold",
+                                        10.,
+                                        &assets,
+                                        &window,
+                                    )
+                                ),(
+                                    Node {
+                                        bottom: Val::Percent(0.),
+                                        left: Val::Percent(0.),
+                                        width: Val::Percent(100.),
+                                        height: Val::Percent(20.),
+                                        position_type: PositionType::Absolute,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::BLACK),
+                                    Visibility::Hidden,
+                                    ZIndex(2),
+                                    StrategyProgressWrapperCmp,
+                                    children![(
+                                        Node {
+                                            width: Val::Percent(95.),
+                                            height: Val::Percent(76.),
+                                            left: Val::Percent(3.),
+                                            ..default()
+                                        },
+                                        BackgroundColor(players.me.color.color()),
+                                        StrategyProgressCmp,
+                                    )]
+                                )],
+                            ))
+                            .with_children(|parent| {
+                                parent.spawn((
+                                    Node {
+                                        top: Val::Percent(-50.),
+                                        left: Val::Percent(-540.),
+                                        width: Val::Percent(550.),
+                                        height: Val::Percent(540.),
+                                        align_items: AlignItems::Center,
+                                        position_type: PositionType::Absolute,
+                                        flex_direction: FlexDirection::Column,
+                                        padding: UiRect::horizontal(Val::Percent(70.)).with_top(Val::Percent(60.)),
+                                        ..default()
+                                    },
+                                    ImageNode::new(assets.image("banner")),
+                                    Pickable::IGNORE,
+                                    GlobalZIndex(2),
+                                    Visibility::Hidden,
+                                    StrategyHoverCmp,
+                                    children![
+                                        (
+                                            Node {
+                                                margin: UiRect::vertical(Val::Percent(2.)),
+                                                ..default()
+                                            },
+                                            TextColor(Color::BLACK),
+                                            add_text(
+                                                strategy.to_name(),
+                                                "bold",
+                                                12.,
+                                                &assets,
+                                                &window
+                                            ),
+                                        ),
+                                        (
+                                            TextColor(Color::BLACK),
+                                            add_text(
+                                                strategy.description(),
+                                                "bold",
+                                                8.,
+                                                &assets,
+                                                &window
+                                            ),
+                                        )
+                                    ],
+                                ));
+                            })
+                            .observe(cursor::<Over>(SystemCursorIcon::Pointer))
+                            .observe(cursor::<Out>(SystemCursorIcon::Default))
+                            .observe(
+                                |event: On<Pointer<Over>>,
+                                 mut hover_q: Query<&mut Visibility, With<StrategyHoverCmp>>,
+                                 children_q: Query<&Children>| {
+                                    for child in children_q.iter_descendants(event.entity) {
+                                        if let Ok(mut v) = hover_q.get_mut(child) {
+                                            *v = Visibility::Inherited;
+                                        }
+                                    }
+                                },
+                            )
+                            .observe(
+                                |event: On<Pointer<Out>>,
+                                 mut hover_q: Query<&mut Visibility, With<StrategyHoverCmp>>,
+                                 children_q: Query<&Children>| {
+                                    for child in children_q.iter_descendants(event.entity) {
+                                        if let Ok(mut v) = hover_q.get_mut(child) {
+                                            *v = Visibility::Hidden;
+                                        }
+                                    }
+                                },
+                            )
+                            .observe(
+                                |event: On<Pointer<Click>>,
+                                 btn_q: Query<&StrategyButtonCmp>,
+                                 mut players: ResMut<Players>,
+                                 mut play_audio_msg: MessageWriter<PlayAudioMsg>| {
+                                    // Remove unit from queue if clicked
+                                    if event.button == PointerButton::Primary {
+                                        if let Ok(button) = btn_q.get(event.entity) {
+                                            if **button != players.me.strategy && players.me.strategy_timer.is_finished() {
+                                                play_audio_msg.write(PlayAudioMsg::new("click"));
+                                                players.me.strategy = **button;
+                                                players.me.strategy_timer.reset();
+                                            } else {
+                                                play_audio_msg.write(PlayAudioMsg::new("error"));
+                                            }
+                                        }
+                                    }
+                                },
+                            );
                     }
                 });
         });
@@ -707,17 +943,27 @@ pub fn draw_ui(
     ));
 }
 
-/// Updates the advance banner, shop and direction
+/// Updates the advance banner, shop, direction and strategy
 pub fn update_ui(
     unit_q: Query<(&Transform, &Unit)>,
     mut direction_q: Query<&mut ImageNode, With<DirectionCmp>>,
     mut advance_q: Query<(Entity, &mut Node, &AdvanceBannerCmp)>,
+    mut image_q: Query<
+        &mut ImageNode,
+        (With<StrategyAdvanceBannerCmp>, Without<DirectionCmp>, Without<ShopButtonCmp>),
+    >,
     mut text_q: Query<&mut Text, With<TextAdvanceBannerCmp>>,
     mut btn_q: Query<
         (&mut Node, &mut ImageNode, &mut ShopButtonCmp),
         (Without<DirectionCmp>, Without<AdvanceBannerCmp>),
     >,
     mut label_q: Query<(&mut Text, &ShopLabelCmp), Without<TextAdvanceBannerCmp>>,
+    strategy_q: Query<(Entity, &StrategyButtonCmp)>,
+    mut wrapper_q: Query<&mut Visibility, With<StrategyProgressWrapperCmp>>,
+    mut progress_q: Query<
+        &mut Node,
+        (With<StrategyProgressCmp>, Without<AdvanceBannerCmp>, Without<ShopButtonCmp>),
+    >,
     children_q: Query<&Children>,
     players: Res<Players>,
     assets: Res<WorldAssets>,
@@ -755,19 +1001,21 @@ pub fn update_ui(
     let enemy_score = 1. - me_score;
 
     for (entity, mut node, banner) in &mut advance_q {
-        let (n, power) = if banner.0 == players.me.side {
-            (me_score, power_me)
+        let (n, power, strategy) = if banner.0 == players.me.side {
+            (me_score, power_me, players.me.strategy)
         } else {
-            (enemy_score, power_enemy)
+            (enemy_score, power_enemy, players.enemy.strategy)
         };
 
         node.width = Val::Percent(90. * n);
 
-        if let Ok(children) = children_q.get(entity) {
-            for &child in children {
-                if let Ok(mut text) = text_q.get_mut(child) {
-                    text.0 = format!("{:.0}%\n{:.1}k", 100. * n, power / 1000.);
-                }
+        for child in children_q.iter_descendants(entity) {
+            if let Ok(mut image) = image_q.get_mut(child) {
+                image.image = assets.image(strategy.to_lowername());
+            }
+
+            if let Ok(mut text) = text_q.get_mut(child) {
+                text.0 = format!("{:.0}%\n{:.1}k", 100. * n, power / 1000.);
             }
         }
     }
@@ -795,6 +1043,25 @@ pub fn update_ui(
         image.image = assets.image(players.me.direction.image());
         image.flip_y = players.me.direction.flip_y()
     }
+
+    // Update the strategies
+    let timer = &players.me.strategy_timer;
+    for (entity, strategy) in strategy_q.iter() {
+        for child in children_q.iter_descendants(entity) {
+            if let Ok(mut v) = wrapper_q.get_mut(child) {
+                *v = if **strategy == players.me.strategy && !timer.is_finished() {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                };
+            }
+
+            if let Ok(mut node) = progress_q.get_mut(child) {
+                let frac = 1. - timer.elapsed_secs() / timer.duration().as_secs_f32();
+                node.width = Val::Percent(95. * frac);
+            }
+        }
+    }
 }
 
 /// Updates the boosts, queue and speed indicator
@@ -812,7 +1079,7 @@ pub fn update_ui2(
         (Without<BoostBoxCmp>, Without<BoostBoxImageCmp>),
     >,
     mut progress_wrapper_q: Query<
-        (Entity, &mut Visibility),
+        &mut Visibility,
         (With<QueueProgressWrapperCmp>, Without<BoostBoxCmp>),
     >,
     mut progress_inner_q: Query<&mut Node, (Without<BoostBoxCmp>, Without<SwordQueueCmp>)>,
@@ -889,28 +1156,22 @@ pub fn update_ui2(
                 assets.image(format!("{}-{}", players.me.color.to_name(), queue.unit.to_name()));
 
             // Update progress bar
-            if let Ok(children) = children_q.get(entity) {
-                for &child in children {
-                    if let Ok((bar_e, mut bar_v)) = progress_wrapper_q.get_mut(child) {
-                        let frac =
-                            1. - queue.timer.elapsed_secs() / queue.timer.duration().as_secs_f32();
+            for child in children_q.iter_descendants(entity) {
+                if let Ok(mut bar_v) = progress_wrapper_q.get_mut(child) {
+                    let frac =
+                        1. - queue.timer.elapsed_secs() / queue.timer.duration().as_secs_f32();
 
-                        *bar_v = if frac == 1. {
-                            Visibility::Hidden
-                        } else {
-                            Visibility::Inherited
-                        };
+                    *bar_v = if frac == 1. {
+                        Visibility::Hidden
+                    } else {
+                        Visibility::Inherited
+                    };
 
-                        if let Ok(children) = children_q.get(bar_e) {
-                            for &child in children {
-                                if let Ok(mut node) = progress_inner_q.get_mut(child) {
-                                    node.width = Val::Percent(95. * frac); // 95 is original length of bar
-                                    break;
-                                }
-                            }
-                        }
-                        break;
+                    if let Ok(mut node) = progress_inner_q.get_mut(child) {
+                        node.width = Val::Percent(95. * frac); // 95 is original length of bar
                     }
+
+                    break;
                 }
             }
         }

@@ -16,9 +16,9 @@
 TinyWar is a fast-paced, real-time, auto-battler game, where players fight each other 
 on a small map, with the sole goal of destroying the enemy base. A never-ending horde 
 of units spawn from each base and walk down one of the three lanes. Players can queue 
-up units to spawn, decide which lane(s) the units should take, and select from a variety 
-of boosts to help their units win the battle. Remember! If your base is destroyed, you 
-lose the game.
+up units to spawn, decide which lane(s) the units should take, select from a variety 
+of boosts to help their units win the battle, and decide on an engagement strategy.
+Remember! If your base is destroyed, you lose the game.
 
 ## ⚔️ Combat
 
@@ -77,6 +77,20 @@ Boosts come in two flavors:
 A player can have a maximum of 4 boosts selected/activated at the same time. If a 
 player already has 4 boosts when the selection phase starts, they lose the chance to
 select a new one. You can only see the enemy's active boosts.
+
+## ♟️ Strategies
+
+You can choose from 4 strategies that specify the rules of engagement for your units.
+After selecting a strategy, you must wait 5 seconds before being able to select another
+one. The current strategy (and that from the enemy) is shown in the top banner.
+
+- **Attack** (default): Advance until an enemy is in range, then attack.
+- **Guard**: Units that are being attacked go into guard stand (only those that can).
+  Guarding units have their armor and magic resist increased by 50%, but don't attack.
+- **March**: Increase all unit's movement speed by 50% and ignore the enemies. March
+  towards the enemy base!
+- **Berserk**: Units gain 30% increased attack speed but reduces their armor and magic
+  resist by 50%.
 
 ## ⌨️ Key bindings
 

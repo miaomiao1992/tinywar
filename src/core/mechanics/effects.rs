@@ -49,7 +49,7 @@ impl EffectMsg {
     }
 }
 
-#[derive(Message, Clone)]
+#[derive(Message)]
 pub struct DeferredEffectMsg {
     pub effect: Effect,
     pub entity: Entity,
@@ -81,6 +81,9 @@ pub fn effect_message(
         } else {
             *entity_map.get_by_left(&msg.entity).unwrap_or(&msg.entity)
         };
+
+        #[cfg(target_arch = "wasm32")]
+        let entity = msg.entity;
 
         let (translation, size, particles, radius, scale) =
             if let Ok((building_t, building)) = building_q.get(entity) {

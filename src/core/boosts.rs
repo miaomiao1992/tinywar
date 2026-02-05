@@ -1,6 +1,7 @@
 use crate::core::audio::PlayAudioMsg;
 use crate::core::constants::MAX_BOOSTS;
 use crate::core::map::map::{Lane, Map};
+use crate::core::mechanics::effects::EffectMsg;
 use crate::core::mechanics::spawn::{DespawnMsg, SpawnBuildingMsg, SpawnUnitMsg};
 use crate::core::menu::systems::Host;
 #[cfg(not(target_arch = "wasm32"))]
@@ -227,7 +228,7 @@ pub fn update_boosts(settings: Res<Settings>, mut players: ResMut<Players>, time
 }
 
 pub fn activate_boost_message(
-    mut unit_q: Query<(&Transform, &mut Sprite, &mut Unit)>,
+    mut unit_q: Query<(Entity, &Transform, &mut Sprite, &mut Unit)>,
     mut building_q: Query<(Entity, &Transform, &mut Building)>,
     host: Option<Res<Host>>,
     players: Res<Players>,
@@ -236,6 +237,7 @@ pub fn activate_boost_message(
     mut spawn_building_msg: MessageWriter<SpawnBuildingMsg>,
     mut despawn_msg: MessageWriter<DespawnMsg>,
     mut activate_boost_msg: MessageReader<ActivateBoostMsg>,
+    mut effect_msg: MessageWriter<EffectMsg>,
     #[cfg(not(target_arch = "wasm32"))] mut client_send_msg: MessageWriter<ClientSendMsg>,
     #[cfg(not(target_arch = "wasm32"))] mut server_send_msg: MessageWriter<ServerSendMsg>,
     mut play_audio_msg: MessageWriter<PlayAudioMsg>,
@@ -261,10 +263,9 @@ pub fn activate_boost_message(
             let mut rng = rng();
             match msg.boost {
                 Boost::BearDefender => {
-                    for (unit_t, _, unit) in unit_q
-                        .iter()
-                        .filter(|(_, _, u)| u.color == player.color && u.name == UnitName::Priest)
-                    {
+                    for (_, unit_t, _, unit) in unit_q.iter().filter(|(_, _, _, u)| {
+                        u.color == player.color && u.name == UnitName::Priest
+                    }) {
                         spawn_unit_msg.write(SpawnUnitMsg {
                             color: player.color,
                             unit: UnitName::Bear,
@@ -296,9 +297,9 @@ pub fn activate_boost_message(
                     }
                 },
                 Boost::Clone => {
-                    for (unit_t, _, unit) in unit_q
+                    for (_, unit_t, _, unit) in unit_q
                         .iter()
-                        .filter(|(_, _, u)| {
+                        .filter(|(_, _, _, u)| {
                             u.color == player.color
                                 && u.on_building.is_none()
                                 && !matches!(u.action, Action::Attack(_))
@@ -317,48 +318,58 @@ pub fn activate_boost_message(
                     }
                 },
                 Boost::Conversion => {
-                    for (_, _, mut u) in unit_q
+                    for (e, _, _, mut u) in unit_q
                         .iter_mut()
-                        .filter(|(_, _, u)| u.color != player.color && u.on_building.is_none())
+                        .filter(|(_, _, _, u)| u.color != player.color && u.on_building.is_none())
                         .choose_multiple(&mut rng, 5)
                     {
+                        effect_msg.write(EffectMsg::dust(e));
                         u.color = player.color;
                     }
                 },
                 Boost::ConvertHammerheads => {
-                    for (_, mut s, mut u) in unit_q
-                        .iter_mut()
-                        .filter(|(_, _, u)| u.color == player.color && u.name == UnitName::Lancer)
-                    {
+                    for (e, _, mut s, mut u) in unit_q.iter_mut().filter(|(_, _, _, u)| {
+                        u.color == player.color && u.name == UnitName::Lancer
+                    }) {
+                        effect_msg.write(EffectMsg::dust(e));
                         s.custom_size = Some(Vec2::splat(UnitName::Hammerhead.size()));
                         u.name = UnitName::Hammerhead;
                         u.action = Action::default();
                     }
                 },
                 Boost::ConvertSharks => {
-                    for (_, _, mut u) in unit_q.iter_mut().filter(|(_, _, u)| {
+                    for (e, _, _, mut u) in unit_q.iter_mut().filter(|(_, _, _, u)| {
                         u.color == player.color
                             && u.name == UnitName::Archer
                             && u.on_building.is_none()
                     }) {
+                        effect_msg.write(EffectMsg::dust(e));
                         u.name = UnitName::Shark;
                         u.action = Action::default();
                     }
                 },
                 Boost::InstantHealing => unit_q
                     .iter_mut()
-                    .filter(|(_, _, u)| u.color == player.color)
-                    .for_each(|(_, _, mut u)| u.health = u.name.health()),
+                    .filter(|(_, _, _, u)| u.color == player.color)
+                    .for_each(|(_, _, _, mut u)| u.health = u.name.health()),
                 Boost::InstantArmy => {
                     for unit in UnitName::iter().choose_multiple(&mut rng, 6) {
-                        spawn_unit_msg.write(SpawnUnitMsg::new(player.color, unit));
+                        spawn_unit_msg.write(SpawnUnitMsg {
+                            color: player.color,
+                            unit,
+                            position: None,
+                            on_building: None,
+                            lane: None,
+                            dust_effect: true,
+                            entity: None,
+                        });
                     }
                 },
-                Boost::Lightning => unit_q.iter_mut().for_each(|(_, _, mut u)| u.health *= 0.5),
+                Boost::Lightning => unit_q.iter_mut().for_each(|(_, _, _, mut u)| u.health *= 0.5),
                 Boost::MinotaurRage => {
                     let enemies = unit_q
                         .iter()
-                        .filter(|(_, _, u)| u.color != player.color && !u.name.is_basic_unit())
+                        .filter(|(_, _, _, u)| u.color != player.color && !u.name.is_basic_unit())
                         .count();
                     for _ in 0..(enemies / 3).max(1) {
                         spawn_unit_msg.write(SpawnUnitMsg::new(player.color, UnitName::Minotaur));
@@ -371,7 +382,7 @@ pub fn activate_boost_message(
                 Boost::Respawn => {
                     let current_positions: Vec<Vec2> = unit_q
                         .iter()
-                        .filter_map(|(t, _, u)| {
+                        .filter_map(|(_, t, _, u)| {
                             (u.color == player.color && u.on_building.is_some())
                                 .then_some(t.translation.truncate())
                         })
@@ -420,15 +431,24 @@ pub fn activate_boost_message(
                 Boost::SharkTower => {
                     unit_q
                         .iter_mut()
-                        .filter(|(_, _, u)| u.color == player.color && u.on_building.is_some())
-                        .for_each(|(_, _, mut u)| {
+                        .filter(|(_, _, _, u)| u.color == player.color && u.on_building.is_some())
+                        .for_each(|(e, _, _, mut u)| {
+                            effect_msg.write(EffectMsg::dust(e));
                             u.name = UnitName::Shark;
                             u.action = Action::default();
                         });
                 },
                 Boost::SpawnSkulls => {
                     for _ in 0..15 {
-                        spawn_unit_msg.write(SpawnUnitMsg::new(player.color, UnitName::Skull));
+                        spawn_unit_msg.write(SpawnUnitMsg {
+                            color: player.color,
+                            unit: UnitName::Skull,
+                            position: None,
+                            on_building: None,
+                            lane: None,
+                            dust_effect: true,
+                            entity: None,
+                        });
                     }
                 },
                 Boost::SpawnTurtles => {

@@ -9,6 +9,7 @@ use crate::core::player::{PlayerDirection, Players, Side, Strategy};
 use crate::core::settings::Settings;
 use crate::core::states::{AppState, GameState};
 use crate::core::units::units::{Action, Unit, UnitName};
+use crate::utils::scale_duration;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 #[cfg(not(target_arch = "wasm32"))]
@@ -168,9 +169,13 @@ pub fn check_keys_playing_game(
     // Change strategy
     for strategy in Strategy::iter() {
         if keyboard.just_released(strategy.key()) && strategy != players.me.strategy {
-            play_audio_msg.write(PlayAudioMsg::new("click"));
-            players.me.strategy = strategy;
-            println!("changing strat: {strategy:?}");
+            if players.me.strategy_timer.is_finished() {
+                play_audio_msg.write(PlayAudioMsg::new("click"));
+                players.me.strategy = strategy;
+                players.me.strategy_timer.reset();
+            } else {
+                play_audio_msg.write(PlayAudioMsg::new("error"));
+            }
         }
     }
 
@@ -210,4 +215,12 @@ pub fn update_animations(
             }
         }
     });
+}
+
+pub fn update_strategy_timer(
+    settings: Res<Settings>,
+    mut players: ResMut<Players>,
+    time: Res<Time>,
+) {
+    players.me.strategy_timer.tick(scale_duration(time.delta(), settings.speed));
 }

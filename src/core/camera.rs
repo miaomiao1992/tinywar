@@ -1,5 +1,6 @@
 use crate::core::constants::{LERP_FACTOR, MAX_MAP_OFFSET, MAX_ZOOM, MIN_ZOOM, ZOOM_FACTOR};
 use crate::core::map::map::Map;
+use crate::core::units::units::Unit;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::picking::hover::PickingInteraction;
 use bevy::prelude::*;
@@ -27,7 +28,7 @@ pub fn setup_camera(mut commands: Commands) {
 
 pub fn move_camera(
     mut commands: Commands,
-    ui_q: Query<&PickingInteraction, With<Node>>,
+    ui_q: Query<&PickingInteraction, Or<(With<Node>, With<Unit>)>>,
     camera_q: Single<
         (&Camera, &GlobalTransform, &mut Transform, &mut Projection),
         With<MainCamera>,
@@ -67,7 +68,7 @@ pub fn move_camera(
         }
     }
 
-    // Only act if not hovering a UI element
+    // Only act if not hovering a UI element or unit
     if !ui_q.iter().any(|i| *i != PickingInteraction::None) {
         if mouse.pressed(MouseButton::Left) {
             commands.entity(window_e).insert(Into::<CursorIcon>::into(SystemCursorIcon::Grab));

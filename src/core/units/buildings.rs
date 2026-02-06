@@ -1,3 +1,4 @@
+use crate::core::constants::BUILDING_SCALE;
 use crate::core::settings::PlayerColor;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,10 @@ impl BuildingName {
             BuildingName::Castle => Vec2::new(320., 256.),
             BuildingName::Tower => Vec2::new(128., 256.),
         }
+    }
+
+    pub fn world_size(&self) -> Vec2 {
+        self.size() * BUILDING_SCALE
     }
 
     pub fn units(&self) -> Vec<Vec2> {

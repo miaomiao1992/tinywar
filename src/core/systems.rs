@@ -47,12 +47,22 @@ pub fn check_keys_menu(
             },
             AppState::Game => match game_state.get() {
                 GameState::Playing | GameState::Paused => next_game_state.set(GameState::GameMenu),
-                GameState::GameMenu => next_game_state.set(GameState::Playing),
+                GameState::UnitInfo | GameState::GameMenu => {
+                    next_game_state.set(GameState::Playing)
+                },
                 GameState::EndGame => next_app_state.set(AppState::MainMenu),
                 GameState::Settings => next_game_state.set(GameState::GameMenu),
                 _ => (),
             },
             _ => (),
+        }
+    }
+
+    if keyboard.just_released(KeyCode::KeyH) {
+        if matches!(game_state.get(), GameState::Playing | GameState::Paused | GameState::EndGame) {
+            next_game_state.set(GameState::UnitInfo);
+        } else if *game_state.get() == GameState::UnitInfo {
+            next_game_state.set(GameState::Playing);
         }
     }
 

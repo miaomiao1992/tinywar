@@ -27,11 +27,10 @@ use crate::core::constants::{UPDATE_TIMER, WATER_COLOR};
 use crate::core::map::map::Map;
 use crate::core::map::systems::{draw_map, setup_end_game, MapCmp};
 use crate::core::map::ui::boosts::{setup_after_boost, setup_boost_selection};
-use crate::core::map::ui::systems::{draw_ui, update_ui, update_ui2, UiCmp};
+use crate::core::map::ui::scrolling::{on_scroll_handler, send_scroll_events};
+use crate::core::map::ui::systems::*;
 use crate::core::mechanics::combat::{apply_damage_message, resolve_attack, ApplyDamageMsg};
-use crate::core::mechanics::effects::{
-    deferred_message, despawn_effects, effect_message, DeferredEffectMsg, EffectMsg,
-};
+use crate::core::mechanics::effects::*;
 use crate::core::mechanics::movement::apply_movement;
 use crate::core::mechanics::queue::*;
 use crate::core::mechanics::spawn::*;
@@ -105,7 +104,9 @@ impl Plugin for GamePlugin {
             .init_resource::<WorldAssets>()
             .init_resource::<PlayingAudio>()
             .init_resource::<Settings>()
-            .init_resource::<Map>();
+            .init_resource::<Map>()
+            // Observers
+            .add_observer(on_scroll_handler);
 
         // Sets
         configure_stages!(app, InGameSet, in_state(AppState::Game));
@@ -121,7 +122,7 @@ impl Plugin for GamePlugin {
                 .or(in_state(GameState::Paused))
                 .or(in_state(GameState::BoostSelection))
                 .or(in_state(GameState::AfterBoostSelection))
-                .or(in_state(GameState::Paused))
+                .or(in_state(GameState::UnitInfo))
                 .and(in_state(AppState::Game))
         );
         configure_stages!(
@@ -166,7 +167,8 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(AppState::Game), (draw_map, draw_ui))
             .add_systems(
                 Update,
-                (update_ui, update_ui2, update_animations, update_buildings).in_set(InGameSet),
+                (update_ui, update_ui2, update_animations, update_buildings, send_scroll_events)
+                    .in_set(InGameSet),
             )
             .add_systems(
                 Update,
@@ -193,6 +195,9 @@ impl Plugin for GamePlugin {
             .add_systems(OnExit(GameState::BoostSelection), despawn::<CardCmp>)
             .add_systems(OnEnter(GameState::AfterBoostSelection), setup_after_boost)
             .add_systems(OnExit(GameState::AfterBoostSelection), despawn::<CardCmp>)
+            .add_systems(OnEnter(GameState::UnitInfo), setup_unit_info)
+            .add_systems(Update, click_on_map.run_if(in_state(GameState::UnitInfo)))
+            .add_systems(OnExit(GameState::UnitInfo), hide_unit_info)
             .add_systems(OnEnter(GameState::GameMenu), setup_game_menu)
             .add_systems(OnExit(GameState::GameMenu), despawn::<MenuCmp>)
             .add_systems(OnEnter(GameState::EndGame), (despawn::<UiCmp>, setup_end_game))

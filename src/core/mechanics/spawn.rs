@@ -2,6 +2,7 @@ use crate::core::assets::WorldAssets;
 use crate::core::constants::*;
 use crate::core::map::map::Lane;
 use crate::core::map::systems::MapCmp;
+use crate::core::map::ui::systems::UnitInfoCmp;
 use crate::core::map::utils::SpriteFrameLens;
 use crate::core::mechanics::combat::{Arrow, Projectile};
 use crate::core::mechanics::effects::EffectMsg;
@@ -9,14 +10,17 @@ use crate::core::mechanics::effects::EffectMsg;
 use crate::core::multiplayer::EntityMap;
 use crate::core::player::Players;
 use crate::core::settings::PlayerColor;
+use crate::core::states::GameState;
 use crate::core::units::buildings::{Building, BuildingName};
 use crate::core::units::units::{Action, Unit, UnitName};
+use crate::core::utils::cursor;
 use crate::utils::NameFromEnum;
 use bevy::color::palettes::css::{BLACK, LIME};
 use bevy::color::Color;
 use bevy::ecs::children;
 use bevy::math::Vec3;
 use bevy::prelude::*;
+use bevy::window::SystemCursorIcon;
 use bevy_tweening::{RepeatCount, Tween, TweenAnim};
 use std::f32::consts::FRAC_PI_4;
 use std::time::Duration;
@@ -163,12 +167,13 @@ pub fn spawn_unit_message(
     assets: Res<WorldAssets>,
 ) {
     for msg in spawn_unit_msg.read() {
+        let unit = msg.unit;
         let action = Action::default();
 
         let atlas = assets.atlas(format!(
             "{}-{}-{}",
             msg.color.to_name(),
-            msg.unit.to_name(),
+            unit.to_name(),
             action.to_name()
         ));
 
@@ -189,7 +194,7 @@ pub fn spawn_unit_message(
                     Sprite {
                         image: atlas.image,
                         texture_atlas: Some(atlas.atlas),
-                        custom_size: Some(Vec2::splat(msg.unit.size())),
+                        custom_size: Some(Vec2::splat(unit.size())),
                         flip_x: players.me.color != msg.color,
                         ..default()
                     },
@@ -201,12 +206,13 @@ pub fn spawn_unit_message(
                     TweenAnim::new(
                         Tween::new(
                             EaseFunction::Linear,
-                            Duration::from_millis(FRAME_RATE * msg.unit.frames(action) as u64),
+                            Duration::from_millis(FRAME_RATE * unit.frames(action) as u64),
                             SpriteFrameLens(atlas.last_index),
                         )
                         .with_repeat_count(RepeatCount::Infinite),
                     ),
-                    Unit::new(msg.unit, players.get_by_color(msg.color), msg.lane, msg.on_building),
+                    Pickable::default(),
+                    Unit::new(unit, players.get_by_color(msg.color), msg.lane, msg.on_building),
                     MapCmp,
                     children![(
                         Sprite {
@@ -214,7 +220,7 @@ pub fn spawn_unit_message(
                             custom_size: Some(4. + HEALTH_SIZE),
                             ..default()
                         },
-                        Transform::from_xyz(0., HEALTH_SIZE.x * 0.75, 0.1),
+                        Transform::from_xyz(0., unit.world_size() * 0.7, 0.1),
                         Visibility::Hidden,
                         HealthWrapperCmp,
                         children![(
@@ -228,6 +234,28 @@ pub fn spawn_unit_message(
                         )],
                     )],
                 ))
+                .observe(cursor::<Over>(SystemCursorIcon::Pointer))
+                .observe(cursor::<Out>(SystemCursorIcon::Default))
+                .observe(
+                    move |_: On<Pointer<Click>>,
+                          mut info_q: Query<(&mut Visibility, &UnitInfoCmp)>,
+                          game_state: Res<State<GameState>>,
+                          mut next_game_state: ResMut<NextState<GameState>>| {
+                        if matches!(
+                            game_state.get(),
+                            GameState::Playing | GameState::Paused | GameState::UnitInfo
+                        ) {
+                            for (mut v, i) in info_q.iter_mut() {
+                                *v = if **i == unit {
+                                    Visibility::Inherited
+                                } else {
+                                    Visibility::Hidden
+                                }
+                            }
+                            next_game_state.set(GameState::UnitInfo);
+                        }
+                    },
+                )
                 .id();
 
             if msg.dust_effect {
@@ -249,12 +277,23 @@ pub fn spawn_arrow_message(
     assets: Res<WorldAssets>,
 ) {
     for msg in spawn_arrow_msg.read() {
+        let sprite = if msg.projectile.animation() {
+            let atlas = assets.atlas(msg.projectile.to_lowername());
+            Sprite {
+                image: atlas.image,
+                texture_atlas: Some(atlas.atlas),
+                ..default()
+            }
+        } else {
+            Sprite {
+                image: assets.image(msg.projectile.to_lowername()),
+                ..default()
+            }
+        };
+
         let id = commands
             .spawn((
-                Sprite {
-                    image: assets.image(msg.projectile.to_lowername()),
-                    ..default()
-                },
+                sprite,
                 Transform {
                     translation: msg.start.extend(ARROW_Z),
                     rotation: Quat::from_rotation_z(FRAC_PI_4 + msg.projectile.angle()),
@@ -264,6 +303,18 @@ pub fn spawn_arrow_message(
                 MapCmp,
             ))
             .id();
+
+        if msg.projectile.animation() {
+            let atlas = assets.atlas(msg.projectile.to_lowername());
+            commands.entity(id).insert(TweenAnim::new(
+                Tween::new(
+                    EaseFunction::Linear,
+                    Duration::from_millis(FRAME_RATE * (atlas.last_index + 1) as u64),
+                    SpriteFrameLens(atlas.last_index),
+                )
+                .with_repeat_count(RepeatCount::Infinite),
+            ));
+        }
 
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(entity) = msg.entity {

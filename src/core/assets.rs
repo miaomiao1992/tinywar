@@ -127,7 +127,9 @@ impl FromWorld for WorldAssets {
             ("large ribbons", assets.load("images/ui/large ribbons.png")),
             // Units
             ("arrow", assets.load("images/units/arrow.png")),
+            ("bone", assets.load("images/units/bone.png")),
             ("harpoon", assets.load("images/units/harpoon.png")),
+            ("magic", assets.load("images/units/magic.png")),
             // Effects
             ("heal", assets.load("images/effects/heal.png")),
             ("dust1", assets.load("images/effects/dust1.png")),
@@ -266,7 +268,9 @@ impl FromWorld for WorldAssets {
             );
         }
 
+        let bone = TextureAtlasLayout::from_grid(UVec2::splat(64), 4, 1, None, None);
         let heal = TextureAtlasLayout::from_grid(UVec2::splat(192), 11, 1, None, None);
+        let magic = TextureAtlasLayout::from_grid(UVec2::splat(128), 3, 1, None, None);
         let dust1 = TextureAtlasLayout::from_grid(UVec2::splat(64), 8, 1, None, None);
         let dust2 = TextureAtlasLayout::from_grid(UVec2::splat(64), 10, 1, None, None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::splat(192), 8, 1, None, None);
@@ -276,6 +280,17 @@ impl FromWorld for WorldAssets {
         let fire3 = TextureAtlasLayout::from_grid(UVec2::splat(64), 12, 1, None, None);
         atlas.extend([
             (
+                "bone",
+                AtlasInfo {
+                    image: images["bone"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(bone),
+                        index: 0,
+                    },
+                    last_index: 3,
+                },
+            ),
+            (
                 "heal",
                 AtlasInfo {
                     image: images["heal"].clone(),
@@ -284,6 +299,17 @@ impl FromWorld for WorldAssets {
                         index: 0,
                     },
                     last_index: 11,
+                },
+            ),
+            (
+                "magic",
+                AtlasInfo {
+                    image: images["magic"].clone(),
+                    atlas: TextureAtlas {
+                        layout: texture.add(magic),
+                        index: 0,
+                    },
+                    last_index: 2,
                 },
             ),
             (

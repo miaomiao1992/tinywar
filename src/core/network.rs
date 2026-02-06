@@ -232,7 +232,7 @@ pub fn server_receive_message(
             match d {
                 ClientMessage::ShareColor(enemy_color) => settings.enemy_color = enemy_color,
                 ClientMessage::State(state) => match state {
-                    GameState::GameMenu | GameState::Paused
+                    GameState::GameMenu | GameState::Paused | GameState::UnitInfo
                         if *game_state.get() == GameState::Playing =>
                     {
                         next_game_state.set(GameState::Paused);
@@ -311,7 +311,7 @@ pub fn client_receive_message(
                 next_app_state.set(AppState::Game);
             },
             ServerMessage::State(state) => match state {
-                GameState::GameMenu | GameState::Paused
+                GameState::GameMenu | GameState::Paused | GameState::UnitInfo
                     if *game_state.get() == GameState::Playing =>
                 {
                     next_game_state.set(GameState::Paused)

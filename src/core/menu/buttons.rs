@@ -141,11 +141,11 @@ pub fn spawn_menu_button(
     parent
         .spawn((
             Node {
-                width: Val::Percent(25.),
-                height: Val::Percent(10.),
+                width: percent(25.),
+                height: percent(10.),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                margin: UiRect::all(Val::Percent(1.)),
+                margin: UiRect::all(percent(1.)),
                 ..default()
             },
             BackgroundColor(NORMAL_BUTTON_COLOR),

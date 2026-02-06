@@ -54,23 +54,23 @@ pub fn setup_boost_selection(
     commands.spawn((add_root_node(false), CardCmp, MapCmp)).with_children(|parent| {
         parent
             .spawn(Node {
-                top: Val::Percent(7.),
-                width: Val::Percent(80.),
-                height: Val::Percent(60.),
+                top: percent(7.),
+                width: percent(80.),
+                height: percent(60.),
                 position_type: PositionType::Absolute,
                 flex_direction: FlexDirection::Row,
                 justify_content: JustifyContent::Center,
-                margin: UiRect::ZERO.with_top(Val::Percent(5.)),
+                margin: UiRect::ZERO.with_top(percent(5.)),
                 ..default()
             })
             .with_children(|parent| {
                 for boost in own_boosts.into_iter() {
                     parent.spawn((Node {
-                                width: Val::Percent(23.),
-                                height: Val::Percent(100.),
+                                width: percent(23.),
+                                height: percent(100.),
                                 flex_direction: FlexDirection::Column,
                                 align_items: AlignItems::Center,
-                                margin: UiRect::horizontal(Val::Percent(3.)),
+                                margin: UiRect::horizontal(percent(3.)),
                                 ..default()
                             },
                             ImageNode::new(assets.image("boost")),
@@ -88,17 +88,17 @@ pub fn setup_boost_selection(
                             ),
                             children![(
                                 Node {
-                                    top: Val::Percent(27.),
-                                    height: Val::Percent(33.5),
-                                    width: Val::Percent(85.),
+                                    top: percent(27.),
+                                    height: percent(33.5),
+                                    width: percent(85.),
                                     ..default()
                                 },
                                 ImageNode::new(assets.image(boost.to_lowername())),
                                 GlobalZIndex(0),
                                 children![(
                                     Node {
-                                        bottom: Val::Percent(1.),
-                                        right: Val::Percent(5.),
+                                        bottom: percent(1.),
+                                        right: percent(5.),
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
@@ -113,9 +113,9 @@ pub fn setup_boost_selection(
                             ),
                             (
                                 Node {
-                                    top: Val::Percent(34.),
-                                    height: Val::Percent(30.),
-                                    width: Val::Percent(70.),
+                                    top: percent(34.),
+                                    height: percent(30.),
+                                    width: percent(70.),
                                     ..default()
                                 },
                                 TextColor(Color::BLACK),

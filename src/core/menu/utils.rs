@@ -21,8 +21,8 @@ pub fn recolor<E: Debug + Clone + Reflect>(
 pub fn add_root_node(block: bool) -> (Node, Pickable) {
     (
         Node {
-            width: Val::Percent(100.),
-            height: Val::Percent(105.),
+            width: percent(100.),
+            height: percent(105.),
             position_type: PositionType::Absolute,
             flex_direction: FlexDirection::Column,
             align_content: AlignContent::Center,

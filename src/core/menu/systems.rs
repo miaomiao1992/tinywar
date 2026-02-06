@@ -48,12 +48,12 @@ pub fn setup_menu(
         .with_children(|parent| {
             parent
                 .spawn(Node {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
+                    width: percent(100.),
+                    height: percent(100.),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     flex_direction: FlexDirection::Column,
-                    margin: UiRect::ZERO.with_top(Val::Percent(10.)),
+                    margin: UiRect::ZERO.with_top(percent(10.)),
                     ..default()
                 })
                 .with_children(|parent| match app_state.get() {
@@ -129,11 +129,11 @@ pub fn setup_menu(
                     AppState::Settings => {
                         parent
                             .spawn((Node {
-                                width: Val::Percent(40.),
+                                width: percent(40.),
                                 flex_direction: FlexDirection::Column,
                                 align_items: AlignItems::Center,
                                 justify_content: JustifyContent::Center,
-                                margin: UiRect::ZERO.with_top(Val::Percent(-7.)),
+                                margin: UiRect::ZERO.with_top(percent(-7.)),
                                 ..default()
                             },))
                             .with_children(|parent| {
@@ -184,8 +184,8 @@ pub fn setup_menu(
             parent
                 .spawn(Node {
                     position_type: PositionType::Absolute,
-                    right: Val::Percent(3.),
-                    bottom: Val::Percent(6.),
+                    right: percent(3.),
+                    bottom: percent(6.),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -296,11 +296,11 @@ pub fn setup_game_settings(
     commands.spawn((add_root_node(true), MenuCmp)).with_children(|parent| {
         parent
             .spawn((Node {
-                width: Val::Percent(40.),
+                width: percent(40.),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                margin: UiRect::ZERO.with_top(Val::Percent(-7.)),
+                margin: UiRect::ZERO.with_top(percent(-7.)),
                 ..default()
             },))
             .with_children(|parent| {

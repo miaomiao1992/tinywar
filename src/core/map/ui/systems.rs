@@ -11,8 +11,10 @@ use crate::core::states::GameState;
 use crate::core::units::units::{Action, Unit, UnitName};
 use crate::core::utils::cursor;
 use crate::utils::NameFromEnum;
+use bevy::picking::hover::PickingInteraction;
 use bevy::prelude::*;
 use bevy::window::SystemCursorIcon;
+use itertools::Itertools;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
@@ -51,9 +53,6 @@ pub struct BoostBoxImageCmp;
 
 #[derive(Component)]
 pub struct BoostBoxTimerCmp;
-
-#[derive(Component)]
-pub struct HoverBoxCmp;
 
 #[derive(Component)]
 pub struct HoverBoxBoostCmp;
@@ -104,6 +103,12 @@ pub struct QueueProgressWrapperCmp;
 pub struct QueueProgressCmp;
 
 #[derive(Component)]
+pub struct UnitInfoPanelCmp;
+
+#[derive(Component, Deref)]
+pub struct UnitInfoCmp(pub UnitName);
+
+#[derive(Component)]
 pub struct SpeedCmp;
 
 pub fn draw_ui(
@@ -118,10 +123,10 @@ pub fn draw_ui(
     commands
         .spawn((
             Node {
-                top: Val::Percent(3.),
-                left: Val::Percent(15.),
-                width: Val::Percent(70.),
-                height: Val::Percent(10.),
+                top: percent(3.),
+                left: percent(15.),
+                width: percent(70.),
+                height: percent(10.),
                 position_type: PositionType::Absolute,
                 flex_direction: FlexDirection::Row,
                 ..default()
@@ -135,7 +140,7 @@ pub fn draw_ui(
                 let mut p = parent.spawn((
                     Node {
                         width,
-                        height: Val::Percent(100.),
+                        height: percent(100.),
                         align_items: AlignItems::Center,
                         flex_direction: component
                             .map(|side| {
@@ -173,9 +178,9 @@ pub fn draw_ui(
                         children![
                             (
                                 Node {
-                                    height: Val::Percent(50.),
+                                    height: percent(50.),
                                     aspect_ratio: Some(1.0),
-                                    margin: UiRect::horizontal(Val::Percent(2.)),
+                                    margin: UiRect::horizontal(percent(2.)),
                                     ..default()
                                 },
                                 ImageNode::new(assets.image("attack")),
@@ -203,11 +208,11 @@ pub fn draw_ui(
             let left = players.get_by_side(Side::Left).color.index();
             spawn(left * 7, Val::Auto, None);
             spawn(1 + left * 7, Val::Auto, None);
-            spawn(3 + left * 7, Val::Percent(45.), Some(Side::Left));
+            spawn(3 + left * 7, percent(45.), Some(Side::Left));
 
             // Enemy banner
             let right = players.get_by_side(Side::Right).color.index();
-            spawn(3 + right * 7, Val::Percent(45.), Some(Side::Right));
+            spawn(3 + right * 7, percent(45.), Some(Side::Right));
             spawn(5 + right * 7, Val::Auto, None);
             spawn(6 + right * 7, Val::Auto, None);
         });
@@ -216,10 +221,10 @@ pub fn draw_ui(
     commands
         .spawn((
             Node {
-                top: Val::Percent(12.),
-                right: Val::Percent(20.),
-                width: Val::Percent(60.),
-                height: Val::Percent(13.),
+                top: percent(12.),
+                right: percent(20.),
+                width: percent(60.),
+                height: percent(13.),
                 position_type: PositionType::Absolute,
                 ..default()
             },
@@ -234,11 +239,11 @@ pub fn draw_ui(
                     parent
                         .spawn((
                             Node {
-                                width: Val::Percent(10.),
-                                height: Val::Percent(100.),
+                                width: percent(10.),
+                                height: percent(100.),
                                 align_items: AlignItems::Center,
                                 justify_items: JustifyItems::Center,
-                                margin: UiRect::horizontal(Val::Percent(1.)).with_left(if side == Side::Right && i == 0 { Val::Percent(6.) } else { Val::Percent(1.) }),
+                                margin: UiRect::horizontal(percent(1.)).with_left(if side == Side::Right && i == 0 { percent(6.) } else { percent(1.) }),
                                 ..default()
                             },
                             ImageNode::new(assets.image("selected boost")),
@@ -248,10 +253,10 @@ pub fn draw_ui(
                             children![
                                 (
                                     Node {
-                                        top: Val::Percent(28.5),
-                                        left: Val::Percent(6.),
-                                        height: Val::Percent(57.5),
-                                        width: Val::Percent(87.),
+                                        top: percent(28.5),
+                                        left: percent(6.),
+                                        height: percent(57.5),
+                                        width: percent(87.),
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
@@ -260,8 +265,8 @@ pub fn draw_ui(
                                     BoostBoxImageCmp,
                                     children![(
                                         Node {
-                                            bottom: Val::Percent(2.),
-                                            right: Val::Percent(9.),
+                                            bottom: percent(2.),
+                                            right: percent(9.),
                                             position_type: PositionType::Absolute,
                                             ..default()
                                         },
@@ -271,13 +276,13 @@ pub fn draw_ui(
                                 ),
                                 (
                                     Node {
-                                        top: Val::Percent(5.),
-                                        right: Val::Percent(-250.),
-                                        width: Val::Percent(270.),
-                                        height: Val::Percent(120.),
+                                        top: percent(13.),
+                                        right: percent(-270.),
+                                        width: percent(270.),
+                                        height: percent(100.),
                                         position_type: PositionType::Absolute,
-                                        padding: UiRect::horizontal(Val::Percent(40.))
-                                            .with_top(Val::Percent(20.)),
+                                        padding: UiRect::horizontal(percent(30.))
+                                            .with_top(percent(10.)),
                                         ..default()
                                     },
                                     ImageNode::new(assets.image("banner")),
@@ -352,10 +357,10 @@ pub fn draw_ui(
     commands
         .spawn((
             Node {
-                top: Val::Percent(5.),
-                left: Val::Percent(2.),
-                width: Val::Percent(9.),
-                height: Val::Percent(8.),
+                top: percent(5.),
+                left: percent(2.),
+                width: percent(9.),
+                height: percent(8.),
                 ..default()
             },
             ImageNode {
@@ -389,9 +394,9 @@ pub fn draw_ui(
     commands
         .spawn((
             Node {
-                left: Val::Percent(2.),
-                width: Val::Percent(7.),
-                height: Val::Percent(75.),
+                left: percent(2.),
+                width: percent(7.),
+                height: percent(75.),
                 position_type: PositionType::Absolute,
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
@@ -407,7 +412,7 @@ pub fn draw_ui(
             let mut spawn = |idx| {
                 parent.spawn((
                     Node {
-                        width: Val::Percent(100.),
+                        width: percent(100.),
                         aspect_ratio: Some(1.0),
                         ..default()
                     },
@@ -429,8 +434,8 @@ pub fn draw_ui(
 
             parent
                 .spawn(Node {
-                    width: Val::Percent(80.),
-                    height: Val::Percent(70.),
+                    width: percent(80.),
+                    height: percent(70.),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     position_type: PositionType::Absolute,
@@ -445,7 +450,7 @@ pub fn draw_ui(
                                 } else {
                                     Display::None
                                 },
-                                width: Val::Percent(100.),
+                                width: percent(100.),
                                 aspect_ratio: Some(1.),
                                 ..default()
                             },
@@ -458,8 +463,8 @@ pub fn draw_ui(
                             children![
                                 (
                                     Node {
-                                        top: Val::Percent(15.),
-                                        left: Val::Percent(70.),
+                                        top: percent(15.),
+                                        left: percent(70.),
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
@@ -468,8 +473,8 @@ pub fn draw_ui(
                                 ),
                                 (
                                     Node {
-                                        bottom: Val::Percent(15.),
-                                        left: Val::Percent(70.),
+                                        bottom: percent(15.),
+                                        left: percent(70.),
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
@@ -483,128 +488,29 @@ pub fn draw_ui(
                                 ),
                             ],
                         ))
-                        .with_children(|parent| {
-                            // Spawn hover box
-                            parent.spawn((
-                                Node {
-                                    top: Val::Percent(-140.),
-                                    left: Val::Percent(80.),
-                                    width: Val::Percent(600.),
-                                    height: Val::Percent(700.),
-                                    position_type: PositionType::Absolute,
-                                    flex_direction: FlexDirection::Column,
-                                    padding: UiRect::all(Val::Percent(75.)),
-                                    ..default()
-                                },
-                                ImageNode::new(assets.image("banner")),
-                                Pickable::IGNORE,
-                                GlobalZIndex(2), // On top of queue
-                                Visibility::Hidden,
-                                HoverBoxCmp,
-                                ))
-                                .with_children(|parent| {
-                                parent
-                                    .spawn((Node {
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        flex_direction: FlexDirection::Column,
-                                        margin: UiRect::ZERO.with_bottom(Val::Percent(4.)),
-                                        ..default()
-                                    }, children![(
-                                        Node {
-                                            margin: UiRect::vertical(Val::Percent(2.)),
-                                            ..default()
-                                        },
-                                        TextColor(Color::BLACK),
-                                        add_text(unit.to_title(), "bold", 18., &assets, &window),
-                                    ),
-                                    (
-                                        TextColor(Color::BLACK),
-                                        add_text(unit.description(), "bold", 8., &assets, &window),
-                                    )]));
-
-                                parent
-                                    .spawn(Node {
-                                        flex_direction: FlexDirection::Column,
-                                        align_items: AlignItems::FlexStart,
-                                        margin: UiRect::ZERO.with_left(Val::Percent(5.)),
-                                        ..default()
-                                    })
-                                    .with_children(|parent| {
-                                        let attributes = [
-                                            ("Health", unit.health().to_string()),
-                                            (if unit.physical_damage() >= 0. {"Physical damage"} else {"Healing"}, unit.physical_damage().abs().to_string()),
-                                            ("Magic damage", unit.magic_damage().to_string()),
-                                            (if unit.physical_damage() >= 0. {"Attack speed"} else {"Healing speed"}, format!("{:.1}", 10. / unit.frames(if unit.physical_damage() > 0. {Action::Attack(Entity::PLACEHOLDER)} else {Action::Heal(Entity::PLACEHOLDER)}) as f32)),
-                                            ("Armor", unit.armor().to_string()),
-                                            ("Magic resist", unit.magic_resist().to_string()),
-                                            ("Armor penetration", unit.armor_pen().to_string()),
-                                            ("Magic penetration", unit.magic_pen().to_string()),
-                                            ("Can guard", if unit.can_guard() {"Yes".to_owned()} else {"No".to_owned()}),
-                                            ("Movement speed", unit.speed().to_string()),
-                                            ("Attack range", unit.range().to_string()),
-                                            ("Spawn duration", format!("{:.1}s", unit.spawn_duration() as f32 / 1000.)),
-                                        ];
-
-                                        for (k, v) in attributes.iter() {
-                                            parent.spawn((
-                                                Node {
-                                                    width: Val::Percent(100.),
-                                                    margin: UiRect::ZERO.with_bottom(Val::Percent(1.)),
-                                                    ..default()
-                                                },
-                                                children![
-                                                    (
-                                                        Node {
-                                                            width: Val::Percent(5.),
-                                                            aspect_ratio: Some(1.0),
-                                                            margin: UiRect::ZERO.with_right(Val::Percent(2.)),
-                                                            ..default()
-                                                        },
-                                                        ImageNode::new(assets.image(k.to_lowercase())),
-                                                    ),
-                                                    (
-                                                        TextColor(Color::BLACK),
-                                                        add_text(
-                                                            format!("{k}: {v}"),
-                                                            "bold",
-                                                            8.,
-                                                            &assets,
-                                                            &window,
-                                                        ),
-                                                    )
-                                                ],
-                                            ));
-                                        }
-                                    });
-                            });
-                        })
                         .observe(cursor::<Over>(SystemCursorIcon::Pointer))
                         .observe(cursor::<Out>(SystemCursorIcon::Default))
-                        .observe(|event: On<Pointer<Over>>, mut box_q: Query<&mut Visibility, With<HoverBoxCmp>>, children_q: Query<&Children>| {
-                            for child in children_q.iter_descendants(event.entity) {
-                                if let Ok(mut v) = box_q.get_mut(child) {
-                                    *v = Visibility::Inherited;
-                                }
-                            }
-                        })
-                        .observe(|event: On<Pointer<Out>>, mut box_q: Query<&mut Visibility, With<HoverBoxCmp>>, children_q: Query<&Children>| {
-                            for child in children_q.iter_descendants(event.entity) {
-                                if let Ok(mut v) = box_q.get_mut(child) {
-                                    *v = Visibility::Hidden;
-                                }
-                            }
-                        })
                         .observe(
-                            |event: On<Pointer<Click>>,
+                            move |event: On<Pointer<Click>>,
                              btn_q: Query<&ShopButtonCmp>,
+                             mut info_q: Query<(&mut Visibility, &UnitInfoCmp)>,
                              players: Res<Players>,
                              mut queue_unit_msg: MessageWriter<QueueUnitMsg>,
-                             mut play_audio_msg: MessageWriter<PlayAudioMsg>| {
+                             mut play_audio_msg: MessageWriter<PlayAudioMsg>,
+                             mut next_game_state: ResMut<NextState<GameState>>| {
                                 if event.button == PointerButton::Primary {
                                     let button = btn_q.get(event.entity).unwrap();
                                     queue_unit_msg.write(QueueUnitMsg::new(players.me.id, button.unit));
                                     play_audio_msg.write(PlayAudioMsg::new("button"));
+                                } else if event.button == PointerButton::Secondary {
+                                    for (mut v, i) in info_q.iter_mut() {
+                                        *v = if **i == unit {
+                                            Visibility::Inherited
+                                        } else {
+                                            Visibility::Hidden
+                                        }
+                                    }
+                                    next_game_state.set(GameState::UnitInfo);
                                 }
                             },
                         );
@@ -617,9 +523,9 @@ pub fn draw_ui(
     commands
         .spawn((
             Node {
-                right: Val::Percent(2.),
-                width: Val::Percent(5.),
-                height: Val::Percent(50.),
+                right: percent(2.),
+                width: percent(5.),
+                height: percent(50.),
                 position_type: PositionType::Absolute,
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
@@ -635,7 +541,7 @@ pub fn draw_ui(
             let mut spawn = |idx| {
                 parent.spawn((
                     Node {
-                        width: Val::Percent(100.),
+                        width: percent(100.),
                         aspect_ratio: Some(1.0),
                         ..default()
                     },
@@ -657,8 +563,8 @@ pub fn draw_ui(
 
             parent
                 .spawn(Node {
-                    width: Val::Percent(60.),
-                    height: Val::Percent(70.),
+                    width: percent(60.),
+                    height: percent(70.),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     position_type: PositionType::Absolute,
@@ -670,17 +576,17 @@ pub fn draw_ui(
                         parent
                             .spawn((
                                 Node {
-                                    width: Val::Percent(100.),
+                                    width: percent(100.),
                                     aspect_ratio: Some(1.0),
-                                    margin: UiRect::all(Val::Percent(15.)),
+                                    margin: UiRect::all(percent(15.)),
                                     ..default()
                                 },
                                 ImageNode::new(assets.image(strategy.to_lowername())),
                                 StrategyButtonCmp(strategy),
                                 children![(
                                     Node {
-                                        bottom: Val::Percent(-5.),
-                                        left: Val::Percent(70.),
+                                        bottom: percent(-5.),
+                                        left: percent(70.),
                                         position_type: PositionType::Absolute,
                                         ..default()
                                     },
@@ -699,10 +605,10 @@ pub fn draw_ui(
                                     )
                                 ),(
                                     Node {
-                                        bottom: Val::Percent(0.),
-                                        left: Val::Percent(0.),
-                                        width: Val::Percent(100.),
-                                        height: Val::Percent(20.),
+                                        bottom: percent(0.),
+                                        left: percent(0.),
+                                        width: percent(100.),
+                                        height: percent(20.),
                                         position_type: PositionType::Absolute,
                                         align_items: AlignItems::Center,
                                         ..default()
@@ -713,9 +619,9 @@ pub fn draw_ui(
                                     StrategyProgressWrapperCmp,
                                     children![(
                                         Node {
-                                            width: Val::Percent(95.),
-                                            height: Val::Percent(76.),
-                                            left: Val::Percent(3.),
+                                            width: percent(95.),
+                                            height: percent(76.),
+                                            left: percent(3.),
                                             ..default()
                                         },
                                         BackgroundColor(players.me.color.color()),
@@ -726,14 +632,14 @@ pub fn draw_ui(
                             .with_children(|parent| {
                                 parent.spawn((
                                     Node {
-                                        top: Val::Percent(-50.),
-                                        left: Val::Percent(-540.),
-                                        width: Val::Percent(550.),
-                                        height: Val::Percent(540.),
+                                        top: percent(0.),
+                                        left: percent(-550.),
+                                        width: percent(550.),
+                                        height: percent(410.),
                                         align_items: AlignItems::Center,
                                         position_type: PositionType::Absolute,
                                         flex_direction: FlexDirection::Column,
-                                        padding: UiRect::horizontal(Val::Percent(70.)).with_top(Val::Percent(60.)),
+                                        padding: UiRect::horizontal(percent(50.)).with_top(percent(20.)),
                                         ..default()
                                     },
                                     ImageNode::new(assets.image("banner")),
@@ -744,7 +650,7 @@ pub fn draw_ui(
                                     children![
                                         (
                                             Node {
-                                                margin: UiRect::vertical(Val::Percent(2.)),
+                                                margin: UiRect::vertical(percent(2.)),
                                                 ..default()
                                             },
                                             TextColor(Color::BLACK),
@@ -821,10 +727,10 @@ pub fn draw_ui(
     commands
         .spawn((
             Node {
-                left: Val::Percent(10.),
-                bottom: Val::Percent(6.),
-                width: Val::Percent(88.),
-                height: Val::Percent(15.),
+                left: percent(10.),
+                bottom: percent(6.),
+                width: percent(88.),
+                height: percent(15.),
                 position_type: PositionType::Absolute,
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
@@ -838,7 +744,7 @@ pub fn draw_ui(
         .with_children(|parent| {
             parent.spawn((
                 Node {
-                    height: Val::Percent(100.),
+                    height: percent(100.),
                     ..default()
                 },
                 ImageNode::from_atlas_image(
@@ -854,7 +760,7 @@ pub fn draw_ui(
                 parent
                     .spawn((
                         Node {
-                            height: Val::Percent(100.),
+                            height: percent(100.),
                             align_items: AlignItems::Center,
                             justify_content: JustifyContent::Center,
                             ..default()
@@ -866,7 +772,7 @@ pub fn draw_ui(
                         parent
                             .spawn((
                                 Node {
-                                    height: Val::Percent(80.),
+                                    height: percent(80.),
                                     aspect_ratio: Some(1.0),
                                     ..default()
                                 },
@@ -878,10 +784,10 @@ pub fn draw_ui(
                                 QueueButtonCmp(i),
                                 children![(
                                     Node {
-                                        top: Val::Percent(70.),
-                                        left: Val::Percent(20.),
-                                        width: Val::Percent(60.),
-                                        height: Val::Percent(12.),
+                                        top: percent(70.),
+                                        left: percent(20.),
+                                        width: percent(60.),
+                                        height: percent(12.),
                                         position_type: PositionType::Absolute,
                                         align_items: AlignItems::Center,
                                         ..default()
@@ -891,9 +797,9 @@ pub fn draw_ui(
                                     QueueProgressWrapperCmp,
                                     children![(
                                         Node {
-                                            width: Val::Percent(95.),
-                                            height: Val::Percent(75.),
-                                            left: Val::Percent(3.),
+                                            width: percent(95.),
+                                            height: percent(75.),
+                                            left: percent(3.),
                                             ..default()
                                         },
                                         BackgroundColor(players.me.color.color()),
@@ -920,11 +826,253 @@ pub fn draw_ui(
 
             parent.spawn((
                 Node {
-                    height: Val::Percent(100.),
+                    height: percent(100.),
                     ..default()
                 },
                 ImageNode::new(assets.image("swords3")),
             ));
+        });
+
+    // Spawn unit info banner
+    commands
+        .spawn((
+            Node {
+                display: Display::None,
+                position_type: PositionType::Absolute,
+                width: percent(50.),
+                height: percent(66.),
+                left: percent(25.),
+                top: percent(15.),
+                flex_direction: FlexDirection::Row,
+                padding: UiRect {
+                    top: percent(1.),
+                    left: percent(4.),
+                    right: percent(3.),
+                    bottom: percent(7.),
+                },
+                ..default()
+            },
+            ImageNode::new(assets.image("banner")),
+            GlobalZIndex(10),
+            UnitInfoPanelCmp,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn(Node {
+                    width: percent(20.),
+                    height: percent(100.),
+                    flex_direction: FlexDirection::Column,
+                    overflow: Overflow::scroll_y(),
+                    margin: UiRect::top(percent(4.)),
+                    padding: UiRect::all(percent(4.)),
+                    ..default()
+                })
+                .with_children(|parent| {
+                    for unit in UnitName::iter().sorted_by_key(|u| u.to_lowername()) {
+                        parent.spawn((
+                            Node {
+                                width: percent(100.),
+                                aspect_ratio: Some(1.0),
+                                margin: UiRect::all(percent(0.5)),
+                                ..default()
+                            },
+                            ImageNode::new(assets.image(format!(
+                                "{}-{}",
+                                players.me.color.to_name(),
+                                unit.to_name()
+                            ))),
+                        ))
+                        .observe(cursor::<Over>(SystemCursorIcon::Pointer))
+                        .observe(cursor::<Out>(SystemCursorIcon::Default))
+                        .observe(
+                            move |event: On<Pointer<Click>>,
+                                  mut info_q: Query<(&mut Visibility, &UnitInfoCmp)>| {
+                                if event.button == PointerButton::Primary {
+                                    for (mut v, i) in info_q.iter_mut() {
+                                        *v = if **i == unit {
+                                            Visibility::Inherited
+                                        } else {
+                                            Visibility::Hidden
+                                        }
+                                    }
+                                }
+                            },
+                        );
+                    }
+                });
+
+            parent
+                .spawn((Node {
+                    width: percent(70.),
+                    height: percent(100.),
+                    margin: UiRect::ZERO.with_left(percent(2.)),
+                    ..default()
+                },))
+                .with_children(|parent| {
+                    for unit in UnitName::iter() {
+                        parent
+                            .spawn((
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    width: percent(100.),
+                                    height: percent(100.),
+                                    flex_direction: FlexDirection::Column,
+                                    ..default()
+                                },
+                                if unit == UnitName::Archer {
+                                    Visibility::Inherited
+                                } else {
+                                    Visibility::Hidden
+                                },
+                                UnitInfoCmp(unit),
+                            ))
+                            .with_children(|parent| {
+                                parent.spawn((
+                                    Node {
+                                        width: percent(100.),
+                                        height: percent(20.),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    children![
+                                        (
+                                            Node {
+                                                height: percent(100.),
+                                                aspect_ratio: Some(1.0),
+                                                margin: UiRect::vertical(percent(2.)),
+                                                ..default()
+                                            },
+                                            ImageNode::new(assets.image(format!(
+                                                "{}-{}",
+                                                players.me.color.to_name(),
+                                                unit.to_name()
+                                            ))),
+                                        ),
+                                        (
+                                            Node {
+                                                margin: UiRect::vertical(percent(2.)),
+                                                ..default()
+                                            },
+                                            TextColor(Color::BLACK),
+                                            add_text(
+                                                unit.to_title(),
+                                                "bold",
+                                                18.,
+                                                &assets,
+                                                &window
+                                            ),
+                                        ),
+                                    ],
+                                ));
+
+                                parent.spawn((
+                                    Node {
+                                        justify_self: JustifySelf::Center,
+                                        align_self: AlignSelf::Center,
+                                        ..default()
+                                    },
+                                    TextColor(Color::BLACK),
+                                    add_text(unit.description(), "bold", 8., &assets, &window),
+                                ));
+
+                                parent
+                                    .spawn((Node {
+                                        flex_direction: FlexDirection::Column,
+                                        align_items: AlignItems::FlexStart,
+                                        margin: UiRect::all(percent(5.)),
+                                        ..default()
+                                    },))
+                                    .with_children(|parent| {
+                                        let attributes = [
+                                            ("Health", unit.health().to_string()),
+                                            (
+                                                if unit.physical_damage() >= 0. {
+                                                    "Physical damage"
+                                                } else {
+                                                    "Healing"
+                                                },
+                                                unit.physical_damage().abs().to_string(),
+                                            ),
+                                            ("Magic damage", unit.magic_damage().to_string()),
+                                            (
+                                                if unit.physical_damage() >= 0. {
+                                                    "Attack speed"
+                                                } else {
+                                                    "Healing speed"
+                                                },
+                                                format!(
+                                                    "{:.1}",
+                                                    10. / unit.frames(
+                                                        if unit.physical_damage() > 0. {
+                                                            Action::Attack(Entity::PLACEHOLDER)
+                                                        } else {
+                                                            Action::Heal(Entity::PLACEHOLDER)
+                                                        }
+                                                    )
+                                                        as f32
+                                                ),
+                                            ),
+                                            ("Armor", unit.armor().to_string()),
+                                            ("Magic resist", unit.magic_resist().to_string()),
+                                            ("Armor penetration", unit.armor_pen().to_string()),
+                                            ("Magic penetration", unit.magic_pen().to_string()),
+                                            (
+                                                "Can guard",
+                                                if unit.can_guard() {
+                                                    "Yes".to_owned()
+                                                } else {
+                                                    "No".to_owned()
+                                                },
+                                            ),
+                                            ("Movement speed", unit.speed().to_string()),
+                                            ("Attack range", unit.range().to_string()),
+                                            (
+                                                "Spawn duration",
+                                                format!(
+                                                    "{:.1}s",
+                                                    unit.spawn_duration() as f32 / 1000.
+                                                ),
+                                            ),
+                                        ];
+
+                                        for (k, v) in attributes.iter() {
+                                            parent.spawn((
+                                                Node {
+                                                    width: percent(100.),
+                                                    margin: UiRect::ZERO.with_bottom(percent(1.)),
+                                                    ..default()
+                                                },
+                                                children![
+                                                    (
+                                                        Node {
+                                                            width: percent(5.),
+                                                            aspect_ratio: Some(1.0),
+                                                            margin: UiRect::ZERO
+                                                                .with_right(percent(2.)),
+                                                            ..default()
+                                                        },
+                                                        ImageNode::new(
+                                                            assets.image(k.to_lowercase())
+                                                        ),
+                                                    ),
+                                                    (
+                                                        TextColor(Color::BLACK),
+                                                        add_text(
+                                                            format!("{k}: {v}"),
+                                                            "bold",
+                                                            8.,
+                                                            &assets,
+                                                            &window,
+                                                        ),
+                                                    )
+                                                ],
+                                            ));
+                                        }
+                                    });
+                            });
+                    }
+                });
         });
 
     // Draw speed indicator
@@ -1007,7 +1155,7 @@ pub fn update_ui(
             (enemy_score, power_enemy, players.enemy.strategy)
         };
 
-        node.width = Val::Percent(90. * n);
+        node.width = percent(90. * n);
 
         for child in children_q.iter_descendants(entity) {
             if let Ok(mut image) = image_q.get_mut(child) {
@@ -1058,7 +1206,7 @@ pub fn update_ui(
 
             if let Ok(mut node) = progress_q.get_mut(child) {
                 let frac = 1. - timer.elapsed_secs() / timer.duration().as_secs_f32();
-                node.width = Val::Percent(95. * frac);
+                node.width = percent(95. * frac);
             }
         }
     }
@@ -1171,7 +1319,7 @@ pub fn update_ui2(
                 }
 
                 if let Ok(mut node) = progress_inner_q.get_mut(child) {
-                    node.width = Val::Percent(95. * frac); // 95 is original length of bar
+                    node.width = percent(95. * frac); // 95 is original length of bar
                 }
             }
         }
@@ -1188,4 +1336,26 @@ pub fn update_ui2(
             },
         );
     }
+}
+
+pub fn setup_unit_info(info: Single<&mut Node, With<UnitInfoPanelCmp>>) {
+    let mut node = info.into_inner();
+    node.display = Display::Flex;
+}
+
+pub fn click_on_map(
+    ui_q: Query<&PickingInteraction, Or<(With<Node>, With<Unit>)>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
+) {
+    if mouse.just_released(MouseButton::Left)
+        && !ui_q.iter().any(|i| *i != PickingInteraction::None)
+    {
+        next_game_state.set(GameState::Playing);
+    }
+}
+
+pub fn hide_unit_info(info: Single<&mut Node, With<UnitInfoPanelCmp>>) {
+    let mut node = info.into_inner();
+    node.display = Display::None;
 }

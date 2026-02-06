@@ -196,7 +196,12 @@ impl Player {
             strategy_timer: timer,
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
-            boosts: vec![],
+            boosts: vec![
+                SelectedBoost::new(Boost::SpawnTrolls),
+                SelectedBoost::new(Boost::QueueShamans),
+                SelectedBoost::new(Boost::QueueGnolls),
+                SelectedBoost::new(Boost::Respawn),
+            ],
         }
     }
 
@@ -211,9 +216,11 @@ impl Player {
     pub fn can_queue(&self, unit: UnitName) -> bool {
         unit.is_basic_unit()
             || (unit == UnitName::Bear && self.has_boost(Boost::QueueBears))
+            || (unit == UnitName::Gnoll && self.has_boost(Boost::QueueGnolls))
             || (unit == UnitName::Goblin && self.has_boost(Boost::QueueGoblins))
             || (unit == UnitName::Hammerhead && self.has_boost(Boost::QueueHammerheads))
             || (unit == UnitName::Minotaur && self.has_boost(Boost::QueueMinotaurs))
+            || (unit == UnitName::Shaman && self.has_boost(Boost::QueueShamans))
             || (unit == UnitName::Shark && self.has_boost(Boost::QueueSharks))
             || (unit == UnitName::Skull && self.has_boost(Boost::QueueSkulls))
             || (unit == UnitName::Turtle && self.has_boost(Boost::QueueTurtles))

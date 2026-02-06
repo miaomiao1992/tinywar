@@ -99,6 +99,7 @@ one. The current strategy (and that from the enemy) is shown in the top banner.
 - `scroll`: Zoom in/out the map.
 - `space`: Pause/unpause the game.
 - `ctrl + left/right arrow`: Increase/decrease the game's speed (only if host).
+- `H`: Toggle the unit information panel.
 - `Q`: Toggle the audio settings.
 
 - Use the arrows to select which [lanes](#lanes) spawning units should take.

@@ -22,17 +22,43 @@ impl Default for BuildingDestroyCmp {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ProjectileMode {
+    Parabolic,
+    Straight,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Projectile {
     Arrow,
+    Bone,
     Harpoon,
+    Magic,
 }
 
 impl Projectile {
     pub fn angle(&self) -> f32 {
         match self {
             Projectile::Arrow => 0.,
+            Projectile::Bone => 0.,
             Projectile::Harpoon => -FRAC_PI_4,
+            Projectile::Magic => 0.,
+        }
+    }
+
+    pub fn animation(&self) -> bool {
+        match self {
+            Projectile::Bone | Projectile::Magic => true,
+            _ => false,
+        }
+    }
+
+    pub fn mode(&self) -> ProjectileMode {
+        match self {
+            Projectile::Arrow => ProjectileMode::Parabolic,
+            Projectile::Bone => ProjectileMode::Straight,
+            Projectile::Harpoon => ProjectileMode::Parabolic,
+            Projectile::Magic => ProjectileMode::Straight,
         }
     }
 }

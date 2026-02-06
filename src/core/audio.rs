@@ -86,10 +86,10 @@ pub fn setup_audio(mut commands: Commands, assets: Local<WorldAssets>) {
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                width: Val::Percent(5.),
-                height: Val::Percent(5.),
-                right: Val::Percent(0.),
-                top: Val::Percent(2.),
+                width: percent(5.),
+                height: percent(5.),
+                right: percent(0.),
+                top: percent(2.),
                 ..default()
             },
             ZIndex(5),

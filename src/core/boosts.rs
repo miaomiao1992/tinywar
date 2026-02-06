@@ -72,9 +72,11 @@ pub enum Boost {
     NoCollision,
     Penetration,
     QueueBears,
+    QueueGnolls,
     QueueGoblins,
     QueueHammerheads,
     QueueMinotaurs,
+    QueueShamans,
     QueueSharks,
     QueueSkulls,
     QueueTurtles,
@@ -83,9 +85,10 @@ pub enum Boost {
     Run,
     SharkTower,
     Siege,
+    Skulls,
     Snakes,
     SpawnTime,
-    SpawnSkulls,
+    SpawnTrolls,
     SpawnTurtles,
     Spiders,
     Tower,
@@ -123,9 +126,11 @@ impl Boost {
             Boost::NoCollision => "Your units don't collide with each other.",
             Boost::Penetration => "Increase the armor penetration of all your units with 5 points.",
             Boost::QueueBears => "Allow to add bears to the queue.",
+            Boost::QueueGnolls => "Allow to add gnolls to the queue.",
             Boost::QueueGoblins => "Allow to add goblins to the queue.",
             Boost::QueueHammerheads => "Allow to add hammerheads to the queue.",
             Boost::QueueMinotaurs => "Allow to add minotaurs to the queue.",
+            Boost::QueueShamans => "Allow to add shamans to the queue.",
             Boost::QueueSharks => "Allow to add sharks to the queue.",
             Boost::QueueSkulls => "Allow to add skulls to the queue.",
             Boost::QueueTurtles => "Allow to add turtles to the queue.",
@@ -134,9 +139,10 @@ impl Boost {
             Boost::Run => "Increase the speed of all your units by 100%.",
             Boost::SharkTower => "Convert all your units on buildings into sharks.",
             Boost::Siege => "Increase all damage to buildings by 50%.",
+            Boost::Skulls => "Spawn 15 skulls randomly over the map.",
             Boost::Snakes => "Spawn 20 snakes randomly over the map.",
             Boost::SpawnTime => "Reduce all spawning times by 20%.",
-            Boost::SpawnSkulls => "Spawn 15 skulls.",
+            Boost::SpawnTrolls => "Spawn 3 trolls, each towards a path.",
             Boost::SpawnTurtles => "Spawn 3 turtles, each towards a path.",
             Boost::Spiders => "Spawn 10 spiders randomly over the map.",
             Boost::Tower => "Spawn a defense tower near the base.",
@@ -434,8 +440,9 @@ pub fn activate_boost_message(
                         }
                     }
                 },
-                b @ Boost::Snakes | b @ Boost::Spiders => {
+                b @ Boost::Skulls | b @ Boost::Snakes | b @ Boost::Spiders => {
                     let (amount, unit) = match b {
+                        Boost::Skulls => (20, UnitName::Skull),
                         Boost::Snakes => (20, UnitName::Snake),
                         Boost::Spiders => (10, UnitName::Spider),
                         _ => unreachable!(),
@@ -468,24 +475,17 @@ pub fn activate_boost_message(
                             u.action = Action::default();
                         });
                 },
-                Boost::SpawnSkulls => {
-                    for _ in 0..15 {
-                        spawn_unit_msg.write(SpawnUnitMsg {
-                            color: player.color,
-                            unit: UnitName::Skull,
-                            position: None,
-                            on_building: None,
-                            lane: None,
-                            dust_effect: true,
-                            entity: None,
-                        });
-                    }
-                },
-                Boost::SpawnTurtles => {
+                b @ Boost::SpawnTrolls | b @ Boost::SpawnTurtles => {
+                    let unit = match b {
+                        Boost::SpawnTrolls => UnitName::Troll,
+                        Boost::SpawnTurtles => UnitName::Turtle,
+                        _ => unreachable!(),
+                    };
+
                     for path in Lane::iter() {
                         spawn_unit_msg.write(SpawnUnitMsg {
                             color: player.color,
-                            unit: UnitName::Turtle,
+                            unit,
                             position: None,
                             on_building: None,
                             lane: Some(path),

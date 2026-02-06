@@ -148,16 +148,13 @@ fn move_unit(
             for (building_e, building_pos, building) in buildings {
                 let dist = unit_t.translation.distance(*building_pos);
 
-                let separation_radius = if unit.name.is_melee() {
+                let range = if unit.name.is_melee() {
                     (unit.name.world_size() + building.name.world_size().x) * 0.4
                 } else {
                     unit.range(player) * RADIUS
                 };
 
-                if unit.name.can_attack()
-                    && building.color != unit.color
-                    && dist <= separation_radius
-                {
+                if unit.name.can_attack() && building.color != unit.color && dist <= range {
                     unit.action = Action::Attack(*building_e);
                     return;
                 }

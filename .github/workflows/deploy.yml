@@ -39,7 +39,7 @@ jobs:
   # Separate job since butler only works on linux and we need
   # to run cargo build on windows to generate the .exe
   deploy-windows:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build-windows
 
     steps:
@@ -60,7 +60,7 @@ jobs:
 
   build-deploy-wasm:
     name: Build WASM
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}

@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.3.1
 
       - uses: hecrj/setup-rust-action@v2
         with:
@@ -43,6 +43,8 @@ jobs:
     needs: build-windows
 
     steps:
+      - uses: actions/checkout@v4.3.1
+
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
@@ -70,7 +72,7 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.3.1
 
       - uses: hecrj/setup-rust-action@v2.0.1
         with:

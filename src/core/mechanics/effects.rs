@@ -9,7 +9,7 @@ use crate::core::units::units::Unit;
 use crate::utils::NameFromEnum;
 use bevy::prelude::*;
 use bevy_tweening::{CycleCompletedEvent, Delay, Tween, TweenAnim};
-use rand::{rng, Rng};
+use rand::{rng, RngExt};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]

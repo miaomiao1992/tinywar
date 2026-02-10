@@ -12,7 +12,7 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy_tweening::{RepeatCount, Tween, TweenAnim};
 use itertools::Itertools;
-use rand::{rng, Rng};
+use rand::{rng, RngExt};
 use std::time::Duration;
 
 #[derive(Component)]

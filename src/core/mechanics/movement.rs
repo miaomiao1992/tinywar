@@ -111,10 +111,10 @@ fn move_unit(
                             && other.on_building.is_none()
                             && !player.has_boost(Boost::NoCollision)
                         {
-                            // Handle units at exactly the same position
-                            let delta_norm = if dist == 0. {
+                            // Handle units on top of each other
+                            let delta_norm = if dist < 0.01 {
                                 // Use a deterministic direction based on entity to ensure consistent separation
-                                let angle = ((unit_e.to_bits() ^ other_e.to_bits()) as f32) * 2.5;
+                                let angle = unit_e.to_bits() as f32 * 10.;
                                 Vec3::new(angle.cos(), angle.sin(), 0.)
                             } else {
                                 delta.normalize()

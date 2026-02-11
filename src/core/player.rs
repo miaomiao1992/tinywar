@@ -196,7 +196,7 @@ impl Player {
             strategy_timer: timer,
             queue: VecDeque::new(),
             queue_default: UnitName::default(),
-            boosts: vec![SelectedBoost::new(Boost::Respawn)],
+            boosts: vec![],
         }
     }
 

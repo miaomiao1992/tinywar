@@ -20,6 +20,7 @@ use bevy_renet::*;
 use bincode::config::standard;
 use bincode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
+use crate::core::menu::systems::Host;
 
 const PROTOCOL_ID: u64 = 7;
 
@@ -301,10 +302,12 @@ pub fn client_receive_message(
                 player,
                 enemy_color,
             } => {
+                settings.reset();
                 settings.game_mode = GameMode::Multiplayer;
                 settings.color = player.color;
                 settings.enemy_color = enemy_color;
 
+                commands.remove_resource::<Host>();
                 commands.insert_resource(EntityMap::default());
                 commands.insert_resource(AfterBoostCount::default());
                 commands.insert_resource(Players {

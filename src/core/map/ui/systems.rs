@@ -855,6 +855,8 @@ pub fn draw_ui(
             ImageNode::new(assets.image("banner")),
             GlobalZIndex(10),
             UnitInfoPanelCmp,
+            UiCmp,
+            MapCmp,
         ))
         .with_children(|parent| {
             parent

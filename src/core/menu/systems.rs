@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 
 use bevy::prelude::*;
+use bevy_renet::netcode::NetcodeClientTransport;
 #[cfg(not(target_arch = "wasm32"))]
 use {
     crate::core::network::local_ip,
@@ -340,6 +341,7 @@ pub fn exit_multiplayer_lobby(
     if let Some(client) = client.as_mut() {
         client.disconnect();
         commands.remove_resource::<RenetClient>();
+        commands.remove_resource::<NetcodeClientTransport>();
         println!("Client removed.");
     } else if let Some(mut server) = server {
         server.disconnect_all();

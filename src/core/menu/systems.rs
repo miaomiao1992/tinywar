@@ -1,12 +1,11 @@
 use std::net::IpAddr;
 
 use bevy::prelude::*;
-use bevy_renet::netcode::NetcodeClientTransport;
 #[cfg(not(target_arch = "wasm32"))]
 use {
     crate::core::network::local_ip,
     crate::core::network::{Ip, ServerMessage, ServerSendMsg},
-    bevy_renet::netcode::NetcodeServerTransport,
+    bevy_renet::netcode::{NetcodeClientTransport, NetcodeServerTransport},
     bevy_renet::{RenetClient, RenetServer},
 };
 
